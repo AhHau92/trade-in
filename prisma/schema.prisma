@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ADMIN ============
+model Admin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("admin") // "admin" | "superadmin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============ SETTINGS ============
+model Settings {
+  id          String  @id @default(cuid())
+  pickupFee   Float   @default(0)
+  currency    String  @default("SGD")
+  whatsappNumber String @default("")
+  updatedAt   DateTime @updatedAt
+}
+
+// ============ CATEGORY ============
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  image     String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  brands    Brand[]
+}
+
+// ============ BRAND ============
+model Brand {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  image      String?
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products   Product[]
+}
+
+// ============ PRODUCT ============
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  image       String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  variants    Variant[]
+}
+
+// ============ VARIANT ============
+// e.g. iPhone 17 Pro Max 512GB, 1TB
+model Variant {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "512GB", "1TB"
+  basePrice   Float    // base trade-in price
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  bookings    Booking[]
+}
+
+// ============ QUESTION ============
+// Condition questions per variant
+model Question {
+  id        String   @id @default(cuid())
+  title     String   // e.g. "Screen condition?"
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  variantId String
+  variant   Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  options   QuestionOption[]
+}
+
+// ============ QUESTION OPTION ============
+model QuestionOption {
+  id           String   @id @default(cuid())
+  label        String   // e.g. "Cracked", "Minor scratch"
+  priceAdjust  Float    @default(0) // e.g. -100, -200
+  isWhatsapp   Boolean  @default(false) // if true, show WhatsApp instead of price
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  questionId   String
+  question     Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// ============ BRANCH ============
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bookings  Booking[]
+}
+
+// ============ BOOKING ============
+model Booking {
+  id              String   @id @default(cuid())
+  bookingRef      String   @unique // e.g. TI-20240501-001
+  appointmentType String   // "store" | "pickup"
+
+  // device info
+  variantId       String
+  variant         Variant   @relation(fields: [variantId], references: [id])
+  finalPrice      Float
+  selectedOptions Json     // store selected question options
+
+  // customer info
+  name            String
+  email           String
+  phone           String
+  postcode        String
+
+  // store visit
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  visitDate       DateTime?
+
+  // pickup
+  address         String?
+  collectionDate  DateTime?
+  collectionTime  String?
+
+  status          String   @default("pending") // "pending" | "confirmed" | "completed" | "cancelled"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
