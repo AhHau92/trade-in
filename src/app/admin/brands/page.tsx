@@ -1,0 +1,235 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import ImageUpload from '@/components/admin/ImageUpload'
+
+interface Brand {
+  id: string
+  name: string
+  slug: string
+  image: string | null
+  order: number
+  isActive: boolean
+  categories: { category: { id: string; name: string } }[]
+  _count: { products: number }
+}
+
+interface Category {
+  id: string
+  name: string
+}
+
+export default function BrandsPage() {
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing] = useState<Brand | null>(null)
+  const [form, setForm] = useState({ name: '', image: '', order: 0, categoryIds: [] as string[] })
+
+  const fetchAll = async () => {
+    const [brandsRes, catsRes] = await Promise.all([
+      fetch('/api/admin/brands'),
+      fetch('/api/admin/categories'),
+    ])
+    setBrands(await brandsRes.json())
+    setCategories(await catsRes.json())
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchAll() }, [])
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ name: '', image: '', order: 0, categoryIds: [] })
+    setShowModal(true)
+  }
+
+  const openEdit = (brand: Brand) => {
+    setEditing(brand)
+    setForm({
+      name: brand.name,
+      image: brand.image || '',
+      order: brand.order,
+      categoryIds: brand.categories.map(c => c.category.id),
+    })
+    setShowModal(true)
+  }
+
+  const toggleCategory = (id: string) => {
+    setForm(prev => ({
+      ...prev,
+      categoryIds: prev.categoryIds.includes(id)
+        ? prev.categoryIds.filter(c => c !== id)
+        : [...prev.categoryIds, id],
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editing) {
+      await fetch(`/api/admin/brands/${editing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, isActive: editing.isActive }),
+      })
+    } else {
+      await fetch('/api/admin/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+    }
+    setShowModal(false)
+    fetchAll()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this brand?')) return
+    await fetch(`/api/admin/brands/${id}`, { method: 'DELETE' })
+    fetchAll()
+  }
+
+  const toggleActive = async (brand: Brand) => {
+    await fetch(`/api/admin/brands/${brand.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: brand.name,
+        image: brand.image,
+        order: brand.order,
+        isActive: !brand.isActive,
+        categoryIds: brand.categories.map(c => c.category.id),
+      }),
+    })
+    fetchAll()
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Brands</h1>
+        <button onClick={openCreate} className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition">
+          + Add Brand
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-gray-500">Loading...</p>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Image</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Name</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Categories</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Products</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Order</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {brands.map((brand) => (
+                <tr key={brand.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    {brand.image ? (
+                      <img src={brand.image} alt={brand.name} className="w-10 h-10 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No img</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 font-medium">{brand.name}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {brand.categories.map(c => (
+                        <span key={c.category.id} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                          {c.category.name}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">{brand._count.products}</td>
+                  <td className="px-6 py-4 text-gray-500">{brand.order}</td>
+                  <td className="px-6 py-4">
+                    <button onClick={() => toggleActive(brand)} className={`px-2 py-1 rounded-full text-xs font-medium ${brand.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {brand.isActive ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 space-x-2">
+                    <button onClick={() => openEdit(brand)} className="text-blue-600 hover:underline text-sm">Edit</button>
+                    <button onClick={() => handleDelete(brand.id)} className="text-red-600 hover:underline text-sm">Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {brands.length === 0 && (
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No brands yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-bold mb-4">{editing ? 'Edit Brand' : 'Add Brand'}</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                        form.categoryIds.includes(cat.id)
+                          ? 'bg-black text-white border-black'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-black'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <ImageUpload value={form.image} onChange={(url) => setForm({ ...form, image: url })} folder="trade-in/brands" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+                <input
+                  type="number"
+                  value={form.order}
+                  onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) })}
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition">
+                  {editing ? 'Save Changes' : 'Create'}
+                </button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border py-2 rounded-lg hover:bg-gray-50 transition">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
