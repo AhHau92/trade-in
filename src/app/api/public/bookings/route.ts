@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendBookingNotification } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -26,7 +27,38 @@ export async function POST(req: NextRequest) {
       collectionDate: body.collectionDate ? new Date(body.collectionDate) : null,
       collectionTime: body.collectionTime || null,
     },
+    include: {
+      variant: { include: { product: { select: { name: true } } } },
+      branch: { select: { name: true } },
+    },
   })
+
+  // Send email notification
+  try {
+    const settings = await prisma.settings.findFirst()
+    if (settings?.notifyEmail) {
+      await sendBookingNotification({
+        bookingRef: booking.bookingRef,
+        productName: booking.variant.product.name,
+        variantName: booking.variant.name,
+        finalPrice: booking.finalPrice,
+        currency: settings.currency,
+        appointmentType: booking.appointmentType,
+        customerName: booking.name,
+        customerEmail: booking.email,
+        customerPhone: booking.phone,
+        postcode: booking.postcode,
+        branchName: booking.branch?.name,
+        visitDate: booking.visitDate?.toLocaleDateString(),
+        address: booking.address || undefined,
+        collectionDate: booking.collectionDate?.toLocaleDateString(),
+        collectionTime: booking.collectionTime || undefined,
+        selectedOptions: body.selectedOptions,
+      }, settings.notifyEmail)
+    }
+  } catch (error) {
+    console.error('Email send failed:', error)
+  }
 
   return NextResponse.json(booking)
 }

@@ -9,7 +9,7 @@ export async function GET() {
 
   let settings = await prisma.settings.findFirst()
   if (!settings) {
-    settings = await prisma.settings.create({ data: { id: 'default', pickupFee: 10, currency: 'SGD', whatsappNumber: '' } })
+    settings = await prisma.settings.create({ data: { id: 'default', pickupFee: 10, currency: 'SGD', whatsappNumber: '', notifyEmail: '' } })
   }
   return NextResponse.json(settings)
 }
@@ -21,8 +21,8 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
   const settings = await prisma.settings.upsert({
     where: { id: 'default' },
-    update: { pickupFee: body.pickupFee, currency: body.currency, whatsappNumber: body.whatsappNumber },
-    create: { id: 'default', pickupFee: body.pickupFee, currency: body.currency, whatsappNumber: body.whatsappNumber },
+    update: { pickupFee: body.pickupFee, currency: body.currency, whatsappNumber: body.whatsappNumber, notifyEmail: body.notifyEmail || '' },
+    create: { id: 'default', pickupFee: body.pickupFee, currency: body.currency, whatsappNumber: body.whatsappNumber, notifyEmail: body.notifyEmail || '' },
   })
   return NextResponse.json(settings)
 }

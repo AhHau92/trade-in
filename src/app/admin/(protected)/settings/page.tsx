@@ -3,18 +3,20 @@
 import { useState, useEffect } from 'react'
 
 export default function SettingsPage() {
-  const [form, setForm] = useState({ pickupFee: 0, currency: 'SGD', whatsappNumber: '' })
+  const [form, setForm] = useState({ pickupFee: 0, currency: 'SGD', whatsappNumber: '', notifyEmail: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    fetch('/api/admin/settings').then(r => r.json()).then(data => { setForm({ pickupFee: data.pickupFee, currency: data.currency, whatsappNumber: data.whatsappNumber }); setLoading(false) })
+    fetch('/api/admin/settings').then(r => r.json()).then(data => {
+      setForm({ pickupFee: data.pickupFee, currency: data.currency, whatsappNumber: data.whatsappNumber, notifyEmail: data.notifyEmail || '' })
+      setLoading(false)
+    })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     await fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -47,6 +49,12 @@ export default function SettingsPage() {
             <input type="text" value={form.whatsappNumber} onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="+6591234567" />
             <p className="text-xs text-gray-400 mt-1">Customers will be directed to this WhatsApp number</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notification Email</label>
+            <input type="email" value={form.notifyEmail} onChange={(e) => setForm({ ...form, notifyEmail: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="admin@yourcompany.com" />
+            <p className="text-xs text-gray-400 mt-1">Receive email notifications when new bookings are submitted</p>
           </div>
           <button type="submit" disabled={saving} className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition">
             {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Settings'}

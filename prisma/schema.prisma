@@ -25,11 +25,12 @@ model Admin {
 
 // ============ SETTINGS ============
 model Settings {
-  id          String  @id @default(cuid())
-  pickupFee   Float   @default(0)
-  currency    String  @default("SGD")
-  whatsappNumber String @default("")
-  updatedAt   DateTime @updatedAt
+  id              String  @id @default(cuid())
+  pickupFee       Float   @default(0)
+  currency        String  @default("SGD")
+  whatsappNumber  String  @default("")
+  notifyEmail     String  @default("")
+  updatedAt       DateTime @updatedAt
 }
 
 // ============ CATEGORY ============
