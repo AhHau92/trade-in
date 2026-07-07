@@ -88,11 +88,11 @@ export default function BookingPage() {
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>
+  if (loading) return <div className="flex items-center justify-center py-24 text-gray-400">Loading...</div>
 
   if (!bookingData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <div className="flex flex-col items-center justify-center gap-4 py-24">
         <p className="text-gray-500">No trade-in data found.</p>
         <Link href="/" className="text-blue-600 hover:underline">← Start a new trade-in</Link>
       </div>
@@ -101,20 +101,15 @@ export default function BookingPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-white">
-        <header className="bg-black text-white">
-          <div className="max-w-5xl mx-auto px-4 py-4"><h1 className="text-xl font-bold">Trade-In</h1></div>
-        </header>
-        <main className="max-w-2xl mx-auto px-4 py-16 text-center">
-          <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
-          <p className="text-gray-500 mb-4">Your reference number is:</p>
-          <p className="text-3xl font-bold text-green-600 mb-8">{success}</p>
-          <p className="text-gray-500 mb-8">We've received your booking. You'll receive a confirmation email shortly.</p>
-          <Link href="/" className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition">
-            Back to Home
-          </Link>
-        </main>
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <div className="text-5xl mb-4">✅</div>
+        <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
+        <p className="text-gray-500 mb-4">Your reference number is:</p>
+        <p className="text-3xl font-bold text-green-600 mb-8">{success}</p>
+        <p className="text-gray-500 mb-8">We've received your booking. You'll receive a confirmation email shortly.</p>
+        <Link href="/" className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition">
+          Back to Home
+        </Link>
       </div>
     )
   }
@@ -122,15 +117,8 @@ export default function BookingPage() {
   const timeSlots = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM']
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-black text-white">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white">← Back</button>
-          <h1 className="text-xl font-bold">Trade-In</h1>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <button onClick={() => window.history.back()} className="text-sm text-gray-500 hover:text-black mb-4">← Back</button>
         {/* Progress */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {[1, 2, 3, 4].map((step) => (
@@ -277,7 +265,6 @@ export default function BookingPage() {
             {submitting ? 'Submitting...' : 'Submit Booking'}
           </button>
         </form>
-      </main>
     </div>
   )
 }

@@ -74,20 +74,14 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
     window.open(`https://wa.me/${settings.whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>
-  if (!productData) return <div className="min-h-screen flex items-center justify-center text-red-500">Product not found</div>
+  if (loading) return <div className="flex items-center justify-center py-24 text-gray-400">Loading...</div>
+  if (!productData) return <div className="flex items-center justify-center py-24 text-red-500">Product not found</div>
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-black text-white">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href={`/${category}/${brand}`} className="text-gray-400 hover:text-white">← Back</Link>
-          <h1 className="text-xl font-bold">Trade-In</h1>
-        </div>
-      </header>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <Link href={`/${category}/${brand}`} className="text-sm text-gray-500 hover:text-black">← Back</Link>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="bg-gray-50 rounded-2xl p-6 mb-8">
+      <div className="bg-gray-50 rounded-2xl p-6 mb-8 mt-4">
           <div className="flex items-center gap-6">
             {productData.image ? (
               <img src={productData.image} alt={productData.name} className="w-24 h-24 object-contain" />
@@ -183,7 +177,6 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
             </div>
           </div>
         </div>
-      </main>
     </div>
   )
 }
