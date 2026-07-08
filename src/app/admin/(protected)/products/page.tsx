@@ -131,7 +131,13 @@ export default function ProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this product and all its variants?')) return
-    await fetch(`/api/admin/products/${id}`, { method: 'DELETE' }); fetchProducts()
+    const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Failed to delete product')
+      return
+    }
+    fetchProducts()
   }
 
   const toggleActive = async (p: Product) => {

@@ -18,9 +18,18 @@ interface Booking {
   collectionTime: string | null
   status: string
   createdAt: string
+  // Snapshots taken at booking time — prefer these over the live variant/
+  // product relation so renaming a product doesn't rewrite past bookings.
+  productName: string | null
+  variantName: string | null
   variant: { name: string; product: { name: string } }
   branch: { name: string } | null
 }
+
+// Falls back to the live relation for bookings made before the snapshot
+// fields existed.
+const deviceName = (b: Booking) => b.productName || b.variant.product.name
+const deviceVariant = (b: Booking) => b.variantName || b.variant.name
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -121,8 +130,8 @@ export default function BookingsPage() {
                   <p className="text-xs text-gray-400">{b.phone}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="text-sm">{b.variant.product.name}</p>
-                  <p className="text-xs text-gray-400">{b.variant.name}</p>
+                  <p className="text-sm">{deviceName(b)}</p>
+                  <p className="text-xs text-gray-400">{deviceVariant(b)}</p>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${b.appointmentType === 'store' ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700'}`}>
@@ -172,7 +181,7 @@ export default function BookingsPage() {
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-medium text-sm text-gray-500 mb-2">Device</h3>
-                <p className="font-semibold">{selectedBooking.variant.product.name} — {selectedBooking.variant.name}</p>
+                <p className="font-semibold">{deviceName(selectedBooking)} — {deviceVariant(selectedBooking)}</p>
                 <p className="text-green-600 font-bold text-lg mt-1">${selectedBooking.finalPrice}</p>
                 {selectedBooking.selectedOptions && (
                   <div className="mt-2 space-y-1">

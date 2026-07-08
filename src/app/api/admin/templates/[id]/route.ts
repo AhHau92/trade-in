@@ -21,26 +21,60 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
+  const incomingOptions: any[] = body.options || []
 
-  // Delete existing options and recreate
-  await prisma.questionTemplateOption.deleteMany({ where: { templateId: id } })
+  // Incrementally sync options instead of delete-all-then-recreate. Recreating
+  // options assigns them brand-new IDs, which cascade-deletes any
+  // VariantQuestionOverride rows pointing at the old IDs — i.e. every save
+  // (including just flipping isActive) silently wiped per-variant price
+  // overrides. Updating options in place keeps their IDs stable, only
+  // deleting options the admin actually removed.
+  const existingOptions = await prisma.questionTemplateOption.findMany({
+    where: { templateId: id },
+    select: { id: true },
+  })
+  const existingIds = new Set(existingOptions.map((o) => o.id))
+  const incomingIds = new Set(incomingOptions.filter((o) => o.id).map((o) => o.id))
+  const idsToDelete = [...existingIds].filter((eid) => !incomingIds.has(eid))
 
-  const template = await prisma.questionTemplate.update({
-    where: { id },
-    data: {
-      title: body.title,
-      order: body.order || 0,
-      isActive: body.isActive,
-      options: {
-        create: (body.options || []).map((opt: any, i: number) => ({
-          label: opt.label,
-          priceAdjust: opt.priceAdjust || 0,
-          isWhatsapp: opt.isWhatsapp || false,
-          order: i,
-        })),
+  await prisma.$transaction([
+    ...(idsToDelete.length > 0
+      ? [prisma.questionTemplateOption.deleteMany({ where: { id: { in: idsToDelete } } })]
+      : []),
+    ...incomingOptions.map((opt, i) =>
+      opt.id && existingIds.has(opt.id)
+        ? prisma.questionTemplateOption.update({
+            where: { id: opt.id },
+            data: {
+              label: opt.label,
+              priceAdjust: opt.priceAdjust || 0,
+              isWhatsapp: opt.isWhatsapp || false,
+              order: i,
+            },
+          })
+        : prisma.questionTemplateOption.create({
+            data: {
+              label: opt.label,
+              priceAdjust: opt.priceAdjust || 0,
+              isWhatsapp: opt.isWhatsapp || false,
+              order: i,
+              templateId: id,
+            },
+          }),
+    ),
+    prisma.questionTemplate.update({
+      where: { id },
+      data: {
+        title: body.title,
+        order: body.order || 0,
+        isActive: body.isActive,
       },
-    },
-    include: { options: true },
+    }),
+  ])
+
+  const template = await prisma.questionTemplate.findUnique({
+    where: { id },
+    include: { options: { orderBy: { order: 'asc' } } },
   })
   return NextResponse.json(template)
 }
@@ -50,6 +84,15 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+
+  const usageCount = await prisma.variantQuestion.count({ where: { templateId: id } })
+  if (usageCount > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: this template is assigned to ${usageCount} product variant${usageCount === 1 ? '' : 's'}. Remove it from those variants first, or deactivate the template instead.` },
+      { status: 400 },
+    )
+  }
+
   await prisma.questionTemplate.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

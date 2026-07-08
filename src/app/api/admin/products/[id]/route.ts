@@ -66,6 +66,15 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+
+  const bookingCount = await prisma.booking.count({ where: { variant: { productId: id } } })
+  if (bookingCount > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: ${bookingCount} booking${bookingCount === 1 ? '' : 's'} reference this product. Deactivate it instead if you don't want it shown.` },
+      { status: 400 },
+    )
+  }
+
   await prisma.product.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
       bookingRef,
       appointmentType: body.appointmentType,
       variantId: body.variantId,
+      productName: body.productName || null,
+      variantName: body.variantName || null,
       finalPrice: body.finalPrice,
       selectedOptions: body.selectedOptions,
       name: body.name,

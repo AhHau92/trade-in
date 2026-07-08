@@ -65,6 +65,8 @@ export default function BookingPage() {
       body: JSON.stringify({
         appointmentType,
         variantId: bookingData.variantId,
+        productName: bookingData.productName,
+        variantName: bookingData.variantName,
         finalPrice: displayPrice,
         selectedOptions: bookingData.selectedOptions,
         name: form.name,

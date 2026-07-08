@@ -84,8 +84,13 @@ export default function TemplatesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this template? It will be removed from all variants.')) return
-    await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' })
+    if (!confirm('Delete this template?')) return
+    const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Failed to delete template')
+      return
+    }
     fetchTemplates()
   }
 
@@ -120,8 +125,16 @@ export default function TemplatesPage() {
                 <div className="flex items-center gap-3">
                   <span className="font-semibold">{t.title}</span>
                   <span className="text-gray-400 text-sm">Used in {t._count.variants} variant(s)</span>
-                  <button onClick={() => toggleActive(t)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {t.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  <button
+                    onClick={() => toggleActive(t)}
+                    title={t.isActive ? 'Deactivate' : 'Activate'}
+                    aria-label={t.isActive ? 'Deactivate' : 'Activate'}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${t.isActive ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${t.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
                 <div className="flex gap-2">

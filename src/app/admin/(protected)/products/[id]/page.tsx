@@ -52,7 +52,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setShowVariantModal(false); fetchAll()
   }
 
-  const deleteVariant = async (variantId: string) => { if (!confirm('Delete this variant?')) return; await fetch(`/api/admin/variants/${variantId}`, { method: 'DELETE' }); fetchAll() }
+  const deleteVariant = async (variantId: string) => {
+    if (!confirm('Delete this variant?')) return
+    const res = await fetch(`/api/admin/variants/${variantId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Failed to delete variant')
+      return
+    }
+    fetchAll()
+  }
 
   const toggleVariantActive = async (variant: Variant) => {
     await fetch(`/api/admin/variants/${variant.id}`, {

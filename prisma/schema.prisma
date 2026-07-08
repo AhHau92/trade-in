@@ -156,6 +156,12 @@ model Booking {
   // device info
   variantId       String
   variant         Variant   @relation(fields: [variantId], references: [id])
+  // Snapshots of the product/variant name at the time of booking, so that
+  // renaming a product later doesn't rewrite history. Nullable because
+  // bookings created before this field existed won't have it — display
+  // code should fall back to variant.product.name / variant.name for those.
+  productName     String?
+  variantName     String?
   finalPrice      Float
   selectedOptions Json     // store selected question options
 
