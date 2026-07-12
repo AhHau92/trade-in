@@ -2,12 +2,13 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import { formatMoney, formatSignedMoney, dollarsToCents, centsToDollarsInput } from '@/lib/money'
 
-interface TemplateOption { id: string; label: string; priceAdjust: number; isWhatsapp: boolean; order: number }
+interface TemplateOption { id: string; label: string; priceAdjustCents: number; isWhatsapp: boolean; order: number }
 interface Template { id: string; title: string; options: TemplateOption[] }
-interface Override { id: string; templateOptionId: string; priceAdjust: number; isHidden: boolean; isWhatsapp: boolean }
+interface Override { id: string; templateOptionId: string; priceAdjustCents: number; isHidden: boolean; isWhatsapp: boolean }
 interface VariantQuestion { id: string; order: number; templateId: string; template: Template; overrides: Override[] }
-interface Variant { id: string; name: string; basePrice: number; order: number; isActive: boolean; questions: VariantQuestion[] }
+interface Variant { id: string; name: string; basePriceCents: number; order: number; isActive: boolean; questions: VariantQuestion[] }
 interface Product { id: string; name: string; brand: { name: string }; variants: Variant[] }
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,14 +19,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   const [showVariantModal, setShowVariantModal] = useState(false)
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null)
-  const [variantForm, setVariantForm] = useState({ name: '', basePrice: 0, order: 0 })
+  const [variantForm, setVariantForm] = useState({ name: '', basePriceCents: 0, order: 0 })
 
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [assignVariantId, setAssignVariantId] = useState<string | null>(null)
 
   const [showOverrideModal, setShowOverrideModal] = useState(false)
   const [editingVQ, setEditingVQ] = useState<VariantQuestion | null>(null)
-  const [overrideForm, setOverrideForm] = useState<{ templateOptionId: string; priceAdjust: number; isHidden: boolean; isWhatsapp: boolean }[]>([])
+  const [overrideForm, setOverrideForm] = useState<{ templateOptionId: string; priceAdjustCents: number; isHidden: boolean; isWhatsapp: boolean }[]>([])
 
   const fetchAll = async () => {
     const [productRes, templatesRes] = await Promise.all([
@@ -37,10 +38,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAll is redefined every render; only re-run when `id` changes, not on every render
   useEffect(() => { fetchAll() }, [id])
 
-  const openCreateVariant = () => { setEditingVariant(null); setVariantForm({ name: '', basePrice: 0, order: 0 }); setShowVariantModal(true) }
-  const openEditVariant = (v: Variant) => { setEditingVariant(v); setVariantForm({ name: v.name, basePrice: v.basePrice, order: v.order }); setShowVariantModal(true) }
+  const openCreateVariant = () => { setEditingVariant(null); setVariantForm({ name: '', basePriceCents: 0, order: 0 }); setShowVariantModal(true) }
+  const openEditVariant = (v: Variant) => { setEditingVariant(v); setVariantForm({ name: v.name, basePriceCents: v.basePriceCents, order: v.order }); setShowVariantModal(true) }
 
   const handleVariantSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,7 +69,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     await fetch(`/api/admin/variants/${variant.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: variant.name, basePrice: variant.basePrice, order: variant.order, isActive: !variant.isActive }),
+      body: JSON.stringify({ name: variant.name, basePriceCents: variant.basePriceCents, order: variant.order, isActive: !variant.isActive }),
     })
     fetchAll()
   }
@@ -96,7 +98,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       const existing = vq.overrides.find(o => o.templateOptionId === opt.id)
       return {
         templateOptionId: opt.id,
-        priceAdjust: existing ? existing.priceAdjust : opt.priceAdjust,
+        priceAdjustCents: existing ? existing.priceAdjustCents : opt.priceAdjustCents,
         isHidden: existing ? existing.isHidden : false,
         isWhatsapp: existing ? existing.isWhatsapp : opt.isWhatsapp,
       }
@@ -137,7 +139,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
               <div className="flex items-center gap-3">
                 <span className="font-semibold">{variant.name}</span>
-                <span className="text-green-600 font-medium">SGD {variant.basePrice}</span>
+                <span className="text-green-600 font-medium">SGD {formatMoney(variant.basePriceCents)}</span>
                 <button onClick={() => toggleVariantActive(variant)}
                   className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer ${variant.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {variant.isActive ? 'Active' : 'Inactive'}
@@ -165,7 +167,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     {vq.template.options.map((opt) => {
                       const override = vq.overrides.find(o => o.templateOptionId === opt.id)
                       const isHidden = override?.isHidden || false
-                      const price = override ? override.priceAdjust : opt.priceAdjust
+                      const priceCents = override ? override.priceAdjustCents : opt.priceAdjustCents
                       const isWA = override ? override.isWhatsapp : opt.isWhatsapp
 
                       if (isHidden) return (
@@ -180,8 +182,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                           {isWA ? (
                             <span className="text-green-600 font-medium ml-1">→ WhatsApp</span>
                           ) : (
-                            <span className={`font-medium ml-1 ${price < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                              {price === 0 ? '±0' : price > 0 ? `+${price}` : price}
+                            <span className={`font-medium ml-1 ${priceCents < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                              {formatSignedMoney(priceCents)}
                             </span>
                           )}
                           {override && <span className="text-yellow-500 text-xs ml-1">★</span>}
@@ -212,7 +214,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 <input type="text" value={variantForm.name} onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" placeholder="e.g. 512GB" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Base Price (SGD)</label>
-                <input type="number" value={variantForm.basePrice} onChange={(e) => setVariantForm({ ...variantForm, basePrice: parseFloat(e.target.value) })}
+                <input type="number" step="0.01" value={centsToDollarsInput(variantForm.basePriceCents)} onChange={(e) => setVariantForm({ ...variantForm, basePriceCents: dollarsToCents(e.target.value) })}
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" required /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
                 <input type="number" value={variantForm.order} onChange={(e) => setVariantForm({ ...variantForm, order: parseInt(e.target.value) })}
@@ -266,7 +268,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 <div key={opt.id} className={`border rounded-lg p-3 ${overrideForm[i]?.isHidden ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm">{opt.label}</span>
-                    <span className="text-xs text-gray-400">Default: {opt.isWhatsapp ? 'WhatsApp' : opt.priceAdjust}</span>
+                    <span className="text-xs text-gray-400">Default: {opt.isWhatsapp ? 'WhatsApp' : formatMoney(opt.priceAdjustCents)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -282,8 +284,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     {!overrideForm[i]?.isHidden && !overrideForm[i]?.isWhatsapp && (
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-500">Price:</span>
-                        <input type="number" value={overrideForm[i]?.priceAdjust || 0}
-                          onChange={(e) => { const f = [...overrideForm]; f[i] = { ...f[i], priceAdjust: parseFloat(e.target.value) }; setOverrideForm(f) }}
+                        <input type="number" step="0.01" value={centsToDollarsInput(overrideForm[i]?.priceAdjustCents || 0)}
+                          onChange={(e) => { const f = [...overrideForm]; f[i] = { ...f[i], priceAdjustCents: dollarsToCents(e.target.value) }; setOverrideForm(f) }}
                           className="w-24 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-black" />
                       </div>
                     )}

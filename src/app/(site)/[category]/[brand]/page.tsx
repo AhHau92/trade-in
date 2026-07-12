@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface Product { id: string; name: string; slug: string; image: string | null; condition: string }
 
@@ -42,13 +43,13 @@ export default function BrandPage({ params }: { params: Promise<{ category: stri
           {Array.from(groupedMap.entries()).map(([name, variants]) => (
             <div key={name} className="border-2 border-gray-200 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
               {variants[0].image ? (
-                <img src={variants[0].image} alt={name} className="w-20 h-20 object-contain mx-auto mb-4" />
+                <Image src={variants[0].image} alt={name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4" />
               ) : (
                 <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">📱</div>
               )}
               <p className="font-semibold mb-3">{name}</p>
               <div className="flex justify-center gap-2">
-                {variants.sort((a, b) => a.condition === 'new' ? -1 : 1).map((p) => (
+                {variants.sort((a) => a.condition === 'new' ? -1 : 1).map((p) => (
                   <Link key={p.id} href={`/${category}/${brand}/${p.slug}/${p.condition}`}
                     className={`px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition ${
                       p.condition === 'new' ? 'border-blue-500 text-blue-700 hover:bg-blue-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'

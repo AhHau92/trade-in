@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { formatSignedMoney, dollarsToCents, centsToDollarsInput } from '@/lib/money'
 
 interface TemplateOption {
   id?: string
   label: string
-  priceAdjust: number
+  priceAdjustCents: number
   isWhatsapp: boolean
   order: number
 }
@@ -49,11 +50,11 @@ export default function TemplatesPage() {
   const addOption = () => {
     setForm(prev => ({
       ...prev,
-      options: [...prev.options, { label: '', priceAdjust: 0, isWhatsapp: false, order: prev.options.length }],
+      options: [...prev.options, { label: '', priceAdjustCents: 0, isWhatsapp: false, order: prev.options.length }],
     }))
   }
 
-  const updateOption = (index: number, field: string, value: any) => {
+  const updateOption = (index: number, field: keyof TemplateOption, value: string | number | boolean) => {
     setForm(prev => ({
       ...prev,
       options: prev.options.map((opt, i) => i === index ? { ...opt, [field]: value } : opt),
@@ -149,8 +150,8 @@ export default function TemplatesPage() {
                     {opt.isWhatsapp ? (
                       <span className="text-green-600 font-medium ml-1">→ WhatsApp</span>
                     ) : (
-                      <span className={`font-medium ml-1 ${opt.priceAdjust < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {opt.priceAdjust === 0 ? '±0' : opt.priceAdjust > 0 ? `+${opt.priceAdjust}` : opt.priceAdjust}
+                      <span className={`font-medium ml-1 ${opt.priceAdjustCents < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {formatSignedMoney(opt.priceAdjustCents)}
                       </span>
                     )}
                   </div>
@@ -229,8 +230,9 @@ export default function TemplatesPage() {
                             <span className="text-xs text-gray-500">Price adj:</span>
                             <input
                               type="number"
-                              value={opt.priceAdjust}
-                              onChange={(e) => updateOption(i, 'priceAdjust', parseFloat(e.target.value))}
+                              step="0.01"
+                              value={centsToDollarsInput(opt.priceAdjustCents)}
+                              onChange={(e) => updateOption(i, 'priceAdjustCents', dollarsToCents(e.target.value))}
                               className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                               placeholder="e.g. -100"
                             />
@@ -240,7 +242,7 @@ export default function TemplatesPage() {
                     </div>
                   ))}
                   {form.options.length === 0 && (
-                    <p className="text-gray-400 text-sm text-center py-2">No options yet — click "+ Add Option"</p>
+                    <p className="text-gray-400 text-sm text-center py-2">No options yet — click &quot;+ Add Option&quot;</p>
                   )}
                 </div>
               </div>

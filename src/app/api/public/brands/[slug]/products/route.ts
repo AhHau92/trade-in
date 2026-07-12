@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   const brand = await prisma.brand.findUnique({ where: { slug } })
   if (!brand) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const where: any = { isActive: true, brandId: brand.id }
+  const where: Prisma.ProductWhereInput = { isActive: true, brandId: brand.id }
   if (categorySlug) {
     const category = await prisma.category.findUnique({ where: { slug: categorySlug } })
     if (category) where.categoryId = category.id

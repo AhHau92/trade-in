@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { formatMoney } from '@/lib/money'
 
 interface BookingData {
   variantId: string
@@ -9,10 +11,10 @@ interface BookingData {
   variantName: string
   productImage: string | null
   condition: string
-  finalPrice: number
-  selectedOptions: { templateId: string; optionId: string; question: string; answer: string; priceAdjust: number }[]
+  finalPriceCents: number
+  selectedOptions: { templateId: string; optionId: string; question: string; answer: string; priceAdjustCents: number }[]
   currency: string
-  pickupFee: number
+  pickupFeeCents: number
 }
 
 interface Branch { id: string; name: string; address: string }
@@ -20,7 +22,7 @@ interface Branch { id: string; name: string; address: string }
 export default function BookingPage() {
   const [bookingData, setBookingData] = useState<BookingData | null>(null)
   const [branches, setBranches] = useState<Branch[]>([])
-  const [settings, setSettings] = useState({ pickupFee: 0, currency: 'SGD', whatsappNumber: '' })
+  const [settings, setSettings] = useState({ pickupFeeCents: 0, currency: 'SGD', whatsappNumber: '' })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
@@ -46,7 +48,7 @@ export default function BookingPage() {
     if (saved) {
       const data = JSON.parse(saved)
       setBookingData(data)
-      setSettings({ pickupFee: data.pickupFee, currency: data.currency, whatsappNumber: '' })
+      setSettings({ pickupFeeCents: data.pickupFeeCents, currency: data.currency, whatsappNumber: '' })
     }
 
     Promise.all([
@@ -63,11 +65,11 @@ export default function BookingPage() {
     setConfirmedPrice(null)
   }, [appointmentType])
 
-  const displayPrice = confirmedPrice !== null
+  const displayPriceCents = confirmedPrice !== null
     ? confirmedPrice
     : appointmentType === 'pickup' && bookingData
-      ? bookingData.finalPrice - settings.pickupFee
-      : bookingData?.finalPrice || 0
+      ? bookingData.finalPriceCents - settings.pickupFeeCents
+      : bookingData?.finalPriceCents || 0
 
   const buildPayload = () => {
     if (!bookingData) return null
@@ -95,7 +97,7 @@ export default function BookingPage() {
     if (!payload) return
     setSubmitting(true)
 
-    // NOTE: We deliberately do NOT send finalPrice/productName/variantName —
+    // NOTE: We deliberately do NOT send finalPriceCents/productName/variantName —
     // those are display-only values computed in the browser. The server
     // re-derives the price and names from the database using variantId +
     // selectedOptions (template/option IDs only), so nothing price-related
@@ -141,13 +143,13 @@ export default function BookingPage() {
       return
     }
 
-    const oldPrice = displayPrice
-    setConfirmedPrice(quote.finalPrice)
+    const oldPrice = displayPriceCents
+    setConfirmedPrice(quote.finalPriceCents)
 
-    if (quote.finalPrice === oldPrice) {
+    if (quote.finalPriceCents === oldPrice) {
       await createBooking()
     } else {
-      setPriceConfirm({ oldPrice, newPrice: quote.finalPrice })
+      setPriceConfirm({ oldPrice, newPrice: quote.finalPriceCents })
     }
   }
 
@@ -169,7 +171,7 @@ export default function BookingPage() {
         <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
         <p className="text-gray-500 mb-4">Your reference number is:</p>
         <p className="text-3xl font-bold text-green-600 mb-8">{success}</p>
-        <p className="text-gray-500 mb-8">We've received your booking. You'll receive a confirmation email shortly.</p>
+        <p className="text-gray-500 mb-8">We&apos;ve received your booking. You&apos;ll receive a confirmation email shortly.</p>
         <Link href="/" className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition">
           Back to Home
         </Link>
@@ -201,7 +203,7 @@ export default function BookingPage() {
         <div className="bg-gray-50 rounded-2xl p-6 mb-8">
           <div className="flex items-center gap-6">
             {bookingData.productImage ? (
-              <img src={bookingData.productImage} alt={bookingData.productName} className="w-24 h-24 object-contain" />
+              <Image src={bookingData.productImage} alt={bookingData.productName} width={96} height={96} className="w-24 h-24 object-contain" />
             ) : (
               <div className="w-24 h-24 bg-gray-200 rounded-xl flex items-center justify-center text-3xl">📱</div>
             )}
@@ -215,7 +217,7 @@ export default function BookingPage() {
                 ))}
               </div>
               <div className={`inline-block mt-3 px-4 py-2 rounded-lg font-semibold ${appointmentType === 'pickup' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                You get: {settings.currency} {displayPrice.toLocaleString()}
+                You get: {settings.currency} {formatMoney(displayPriceCents)}
                 {appointmentType === 'pickup' && (
                   <span className="text-xs font-normal ml-1">(Pick-up fee already deducted)</span>
                 )}
@@ -241,7 +243,7 @@ export default function BookingPage() {
 
             {appointmentType === 'pickup' && (
               <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2 text-sm text-yellow-700">
-                🚚 {settings.currency} {settings.pickupFee} courier pick-up fee has been deducted from the final amount.
+                🚚 {settings.currency} {formatMoney(settings.pickupFeeCents)} courier pick-up fee has been deducted from the final amount.
               </div>
             )}
           </div>
@@ -340,11 +342,11 @@ export default function BookingPage() {
               <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-1">
                 <div className="flex justify-between text-sm text-gray-400 line-through">
                   <span>Previous quote</span>
-                  <span>{settings.currency} {priceConfirm.oldPrice.toLocaleString()}</span>
+                  <span>{settings.currency} {formatMoney(priceConfirm.oldPrice)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
                   <span>New quote</span>
-                  <span className="text-green-600">{settings.currency} {priceConfirm.newPrice.toLocaleString()}</span>
+                  <span className="text-green-600">{settings.currency} {formatMoney(priceConfirm.newPrice)}</span>
                 </div>
               </div>
               <div className="flex gap-3">

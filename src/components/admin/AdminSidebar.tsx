@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import type { Session } from 'next-auth'
 
 const navItems = [
   { href: '/admin/dashboard', label: '📊 Dashboard' },
@@ -16,7 +17,7 @@ const navItems = [
   { href: '/admin/settings', label: '⚙️ Settings' },
 ]
 
-export default function AdminSidebar({ user }: { user: any }) {
+export default function AdminSidebar({ user }: { user: Session['user'] }) {
   const pathname = usePathname()
 
   return (

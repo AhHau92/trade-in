@@ -21,7 +21,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   const newVariant = await prisma.variant.create({
     data: {
       name: `${original.name} (Copy)`,
-      basePrice: original.basePrice,
+      basePriceCents: original.basePriceCents,
       order: original.order + 1,
       productId: original.productId,
       questions: {
@@ -31,7 +31,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
           overrides: {
             create: q.overrides.map(o => ({
               templateOptionId: o.templateOptionId,
-              priceAdjust: o.priceAdjust,
+              priceAdjustCents: o.priceAdjustCents,
               isHidden: o.isHidden,
               isWhatsapp: o.isWhatsapp,
             })),

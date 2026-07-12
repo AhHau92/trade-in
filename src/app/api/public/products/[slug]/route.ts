@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   product.variants.forEach(v => {
-    v.questions.sort((a: any, b: any) => a.template.order - b.template.order)
+    v.questions.sort((a: (typeof v.questions)[number], b: (typeof v.questions)[number]) => a.template.order - b.template.order)
   })
 
   return NextResponse.json(product)

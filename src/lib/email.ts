@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { formatMoney } from '@/lib/money'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -6,7 +7,7 @@ interface BookingEmailData {
   bookingRef: string
   productName: string
   variantName: string
-  finalPrice: number
+  finalPriceCents: number
   currency: string
   appointmentType: string
   customerName: string
@@ -22,12 +23,6 @@ interface BookingEmailData {
 }
 
 export async function sendBookingNotification(data: BookingEmailData, notifyEmail: string) {
-  const optionsList = data.selectedOptions.map(o => `${o.question}: ${o.answer}`).join('\n')
-
-  const appointmentDetails = data.appointmentType === 'store'
-    ? `Branch: ${data.branchName}\nVisit Date: ${data.visitDate}`
-    : `Address: ${data.address}\nCollection: ${data.collectionDate} ${data.collectionTime}`
-
   // Email to admin
   await resend.emails.send({
     from: 'Trade-In <onboarding@resend.dev>',
@@ -40,7 +35,7 @@ export async function sendBookingNotification(data: BookingEmailData, notifyEmai
       <h3>Device</h3>
       <p><strong>Product:</strong> ${data.productName}</p>
       <p><strong>Variant:</strong> ${data.variantName}</p>
-      <p><strong>Price:</strong> ${data.currency} ${data.finalPrice.toLocaleString()}</p>
+      <p><strong>Price:</strong> ${data.currency} ${formatMoney(data.finalPriceCents)}</p>
       <p><strong>Selections:</strong></p>
       <ul>${data.selectedOptions.map(o => `<li>${o.question}: <strong>${o.answer}</strong></li>`).join('')}</ul>
       <hr/>
@@ -72,7 +67,7 @@ export async function sendBookingNotification(data: BookingEmailData, notifyEmai
       <p>Thank you for your trade-in booking. Here are your details:</p>
       <p><strong>Reference:</strong> ${data.bookingRef}</p>
       <p><strong>Device:</strong> ${data.productName} (${data.variantName})</p>
-      <p><strong>You get:</strong> ${data.currency} ${data.finalPrice.toLocaleString()}</p>
+      <p><strong>You get:</strong> ${data.currency} ${formatMoney(data.finalPriceCents)}</p>
       <hr/>
       <h3>Appointment Details</h3>
       ${data.appointmentType === 'store' ? `

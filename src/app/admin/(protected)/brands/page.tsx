@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import ImageUpload from '@/components/admin/ImageUpload'
 
 interface Brand {
@@ -140,7 +141,7 @@ export default function BrandsPage() {
                 <tr key={brand.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     {brand.image ? (
-                      <img src={brand.image} alt={brand.name} className="w-10 h-10 object-cover rounded-lg" />
+                      <Image src={brand.image} alt={brand.name} width={40} height={40} className="w-10 h-10 object-cover rounded-lg" />
                     ) : (
                       <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No img</div>
                     )}

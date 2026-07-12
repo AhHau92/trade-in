@@ -29,7 +29,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   if (product) {
     product.variants.forEach(v => {
-      v.questions.sort((a: any, b: any) => a.template.order - b.template.order)
+      v.questions.sort((a: (typeof v.questions)[number], b: (typeof v.questions)[number]) => a.template.order - b.template.order)
     })
   }
 

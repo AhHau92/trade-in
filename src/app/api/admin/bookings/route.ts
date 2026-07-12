@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status') || ''
   const search = searchParams.get('search') || ''
 
-  const where: any = {}
+  const where: Prisma.BookingWhereInput = {}
   if (status) where.status = status
   if (search) {
     where.OR = [

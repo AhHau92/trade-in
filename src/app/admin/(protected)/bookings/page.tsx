@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { formatMoney } from '@/lib/money'
+
+interface SelectedOption {
+  question: string
+  answer: string
+  priceAdjustCents: number
+}
 
 interface Booking {
   id: string
   bookingRef: string
   appointmentType: string
-  finalPrice: number
-  selectedOptions: any
+  finalPriceCents: number
+  selectedOptions: SelectedOption[]
   name: string
   email: string
   phone: string
@@ -138,7 +145,7 @@ export default function BookingsPage() {
                     {b.appointmentType === 'store' ? '🏪 Store' : '🚚 Pickup'}
                   </span>
                 </td>
-                <td className="px-6 py-4 font-medium">${b.finalPrice}</td>
+                <td className="px-6 py-4 font-medium">${formatMoney(b.finalPriceCents)}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[b.status] || 'bg-gray-100'}`}>
                     {b.status}
@@ -182,10 +189,10 @@ export default function BookingsPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-medium text-sm text-gray-500 mb-2">Device</h3>
                 <p className="font-semibold">{deviceName(selectedBooking)} — {deviceVariant(selectedBooking)}</p>
-                <p className="text-green-600 font-bold text-lg mt-1">${selectedBooking.finalPrice}</p>
+                <p className="text-green-600 font-bold text-lg mt-1">${formatMoney(selectedBooking.finalPriceCents)}</p>
                 {selectedBooking.selectedOptions && (
                   <div className="mt-2 space-y-1">
-                    {(Array.isArray(selectedBooking.selectedOptions) ? selectedBooking.selectedOptions : []).map((opt: any, i: number) => (
+                    {(Array.isArray(selectedBooking.selectedOptions) ? selectedBooking.selectedOptions : []).map((opt: SelectedOption, i: number) => (
                       <p key={i} className="text-sm text-gray-600">{opt.question}: <span className="font-medium">{opt.answer}</span></p>
                     ))}
                   </div>

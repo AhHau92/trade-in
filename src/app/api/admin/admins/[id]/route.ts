@@ -8,10 +8,10 @@ import bcrypt from 'bcryptjs'
 // admin account, same as role management and password resets.
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
-  const sessionUser = session?.user as any
-  if (!session || sessionUser.email !== ROOT_ADMIN_EMAIL) {
+  if (!session?.user || session.user.email !== ROOT_ADMIN_EMAIL) {
     return NextResponse.json({ error: 'Only the root admin can delete admins' }, { status: 401 })
   }
+  const sessionUser = session.user
 
   const { id } = await params
   if (id === sessionUser.id) return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 })
@@ -44,10 +44,10 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
 // superadmin cannot be demoted.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const sessionUser = session.user as any
+  const sessionUser = session.user
   const isSelf = id === sessionUser.id
 
   const body = await req.json()

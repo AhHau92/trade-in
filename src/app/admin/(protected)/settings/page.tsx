@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { dollarsToCents, centsToDollarsInput } from '@/lib/money'
 
 export default function SettingsPage() {
-  const [form, setForm] = useState({ pickupFee: 0, currency: 'SGD', whatsappNumber: '', notifyEmail: '' })
+  const [form, setForm] = useState({ pickupFeeCents: 0, currency: 'SGD', whatsappNumber: '', notifyEmail: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/settings').then(r => r.json()).then(data => {
-      setForm({ pickupFee: data.pickupFee, currency: data.currency, whatsappNumber: data.whatsappNumber, notifyEmail: data.notifyEmail || '' })
+      setForm({ pickupFeeCents: data.pickupFeeCents, currency: data.currency, whatsappNumber: data.whatsappNumber, notifyEmail: data.notifyEmail || '' })
       setLoading(false)
     })
   }, [])
@@ -40,7 +41,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Fee</label>
-            <input type="number" value={form.pickupFee} onChange={(e) => setForm({ ...form, pickupFee: parseFloat(e.target.value) })}
+            <input type="number" step="0.01" value={centsToDollarsInput(form.pickupFeeCents)} onChange={(e) => setForm({ ...form, pickupFeeCents: dollarsToCents(e.target.value) })}
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black" />
             <p className="text-xs text-gray-400 mt-1">Fee deducted when customer chooses pickup service</p>
           </div>

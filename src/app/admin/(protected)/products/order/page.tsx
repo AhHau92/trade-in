@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   DndContext,
   closestCenter,
@@ -54,7 +55,7 @@ function SortableItem({ group, index }: { group: ProductGroup; index: number }) 
       </button>
       <span className="text-gray-400 text-sm w-8 text-center">{index + 1}</span>
       {group.image ? (
-        <img src={group.image} alt={group.name} className="w-10 h-10 object-cover rounded-lg" />
+        <Image src={group.image} alt={group.name} width={40} height={40} className="w-10 h-10 object-cover rounded-lg" />
       ) : (
         <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No img</div>
       )}
@@ -63,7 +64,7 @@ function SortableItem({ group, index }: { group: ProductGroup; index: number }) 
         <p className="text-xs text-gray-400">{group.categoryName} → {group.brandName}</p>
       </div>
       <div className="flex gap-1">
-        {group.conditions.sort((a, b) => a === 'new' ? -1 : 1).map((c) => (
+        {group.conditions.sort((a) => a === 'new' ? -1 : 1).map((c) => (
           <span key={c} className={`px-2 py-0.5 rounded-full text-xs font-medium ${c === 'new' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
             {c === 'new' ? 'New' : 'Used'}
           </span>
@@ -125,6 +126,7 @@ export default function ProductOrderPage() {
     setHasChanges(false)
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAll is redefined every render; only re-run when filters change, not on every render
   useEffect(() => { fetchAll() }, [filterCategory, filterBrand])
 
   const handleDragEnd = (event: DragEndEvent) => {

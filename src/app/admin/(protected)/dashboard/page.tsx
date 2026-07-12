@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { formatMoney } from '@/lib/money'
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -43,13 +44,13 @@ export default async function DashboardPage() {
     prisma.product.count(),
     prisma.booking.count(),
     prisma.booking.count({ where: { status: 'pending' } }),
-    prisma.booking.aggregate({ _sum: { finalPrice: true }, where: { status: { not: 'cancelled' } } }),
+    prisma.booking.aggregate({ _sum: { finalPriceCents: true }, where: { status: { not: 'cancelled' } } }),
     prisma.booking.groupBy({ by: ['status'], _count: { status: true } }),
     prisma.booking.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, bookingRef: true, name: true, finalPrice: true, status: true, createdAt: true,
+        id: true, bookingRef: true, name: true, finalPriceCents: true, status: true, createdAt: true,
         productName: true, variantName: true,
         variant: { select: { name: true, product: { select: { name: true } } } },
       },
@@ -62,7 +63,7 @@ export default async function DashboardPage() {
   ])
 
   const currency = settings?.currency || 'SGD'
-  const totalValue = valueAgg._sum.finalPrice || 0
+  const totalValueCents = valueAgg._sum.finalPriceCents || 0
 
   const stats = [
     { label: 'Categories', value: categories, icon: '📁', color: 'bg-blue-500' },
@@ -70,7 +71,7 @@ export default async function DashboardPage() {
     { label: 'Products', value: products, icon: '📱', color: 'bg-purple-500' },
     { label: 'Bookings', value: bookingsTotal, icon: '📅', color: 'bg-orange-500' },
     { label: 'Pending Bookings', value: pendingCount, icon: '⏳', color: 'bg-yellow-500' },
-    { label: 'Trade-In Value', value: `${currency} ${totalValue.toLocaleString()}`, icon: '💰', color: 'bg-teal-500' },
+    { label: 'Trade-In Value', value: `${currency} ${formatMoney(totalValueCents)}`, icon: '💰', color: 'bg-teal-500' },
   ]
 
   const statusOrder = ['pending', 'confirmed', 'completed', 'cancelled']
@@ -186,7 +187,7 @@ export default async function DashboardPage() {
                 <td className="px-6 py-4 text-sm">
                   {b.productName || b.variant.product.name} <span className="text-gray-400">— {b.variantName || b.variant.name}</span>
                 </td>
-                <td className="px-6 py-4 font-medium text-sm">{currency} {b.finalPrice.toLocaleString()}</td>
+                <td className="px-6 py-4 font-medium text-sm">{currency} {formatMoney(b.finalPriceCents)}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[b.status] || 'bg-gray-100'}`}>{b.status}</span>
                 </td>

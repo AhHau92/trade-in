@@ -110,7 +110,7 @@ export default function CategoriesPage() {
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     {cat.image ? (
-                      <img src={cat.image} alt={cat.name} className="w-10 h-10 object-cover rounded-lg" />
+                      <Image src={cat.image} alt={cat.name} width={40} height={40} className="w-10 h-10 object-cover rounded-lg" />
                     ) : (
                       <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No img</div>
                     )}

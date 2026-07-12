@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json()
   const variant = await prisma.variant.update({
     where: { id },
-    data: { name: body.name, basePrice: body.basePrice, order: body.order, isActive: body.isActive },
+    data: { name: body.name, basePriceCents: body.basePriceCents, order: body.order, isActive: body.isActive },
   })
   return NextResponse.json(variant)
 }

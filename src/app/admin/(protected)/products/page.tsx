@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ImageUpload from '@/components/admin/ImageUpload'
 
 interface Product {
@@ -215,7 +216,7 @@ export default function ProductsPage() {
             {products.map((p) => (
               <tr key={p.id} className={`hover:bg-gray-50 ${!p.isActive ? 'opacity-50' : ''}`}>
                 <td className="px-6 py-4">
-                  {p.image ? <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg" />
+                  {p.image ? <Image src={p.image} alt={p.name} width={40} height={40} className="w-10 h-10 object-cover rounded-lg" />
                     : <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">No img</div>}
                 </td>
                 <td className="px-6 py-4 font-medium">{p.name}</td>

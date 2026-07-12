@@ -3,6 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type IncomingTemplateOption = {
+  id?: string
+  label: string
+  priceAdjustCents?: number
+  isWhatsapp?: boolean
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -24,9 +31,9 @@ export async function POST(req: NextRequest) {
       title: body.title,
       order: body.order || 0,
       options: {
-        create: (body.options || []).map((opt: any, i: number) => ({
+        create: (body.options || []).map((opt: IncomingTemplateOption, i: number) => ({
           label: opt.label,
-          priceAdjust: opt.priceAdjust || 0,
+          priceAdjustCents: opt.priceAdjustCents || 0,
           isWhatsapp: opt.isWhatsapp || false,
           order: i,
         })),

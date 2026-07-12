@@ -5,13 +5,18 @@ import { prisma } from '@/lib/prisma'
 // price. Used by both /api/public/bookings/quote (price preview, no write)
 // and /api/public/bookings (actual booking creation), so the two can never
 // drift apart and disagree on what something costs.
+//
+// All money here is integer cents. Money should never be represented as a
+// float — 0.1 + 0.2 !== 0.3 in binary floating point, and this function is
+// exactly the kind of place (summing option adjustments, subtracting a fee)
+// where that kind of drift would silently corrupt a real customer's payout.
 
 export type SelectedOptionInput = { templateId: string; optionId: string }
 
 export type ResolvedSelection = {
   question: string
   answer: string
-  priceAdjust: number
+  priceAdjustCents: number
 }
 
 export type PricingSuccess = {
@@ -19,7 +24,7 @@ export type PricingSuccess = {
   variantId: string
   productName: string
   variantName: string
-  finalPrice: number
+  finalPriceCents: number
   currency: string
   resolvedSelections: ResolvedSelection[]
 }
@@ -43,7 +48,11 @@ export async function resolveBookingPricing(input: {
   }
   const submittedOptions: SelectedOptionInput[] = Array.isArray(input.selectedOptions)
     ? input.selectedOptions.filter(
-        (o: any): o is SelectedOptionInput => o && typeof o.templateId === 'string' && typeof o.optionId === 'string',
+        (o: unknown): o is SelectedOptionInput =>
+          typeof o === 'object' &&
+          o !== null &&
+          typeof (o as SelectedOptionInput).templateId === 'string' &&
+          typeof (o as SelectedOptionInput).optionId === 'string',
       )
     : []
 
@@ -82,9 +91,9 @@ export async function resolveBookingPricing(input: {
     if (override?.isHidden) {
       return { ok: false, status: 400, error: 'That option is not available for this device' }
     }
-    const priceAdjust = override ? override.priceAdjust : option.priceAdjust
+    const priceAdjustCents = override ? override.priceAdjustCents : option.priceAdjustCents
     const isWhatsapp = override ? override.isWhatsapp : option.isWhatsapp
-    resolvedSelections.push({ question: vq.template.title, answer: option.label, priceAdjust, isWhatsapp })
+    resolvedSelections.push({ question: vq.template.title, answer: option.label, priceAdjustCents, isWhatsapp })
   }
 
   if (resolvedSelections.some((s) => s.isWhatsapp)) {
@@ -92,17 +101,17 @@ export async function resolveBookingPricing(input: {
   }
 
   const settings = await prisma.settings.findFirst()
-  const pickupFee = settings?.pickupFee || 0
-  const totalAdjust = resolvedSelections.reduce((sum, s) => sum + s.priceAdjust, 0)
-  const finalPrice = variant.basePrice + totalAdjust - (input.appointmentType === 'pickup' ? pickupFee : 0)
+  const pickupFeeCents = settings?.pickupFeeCents || 0
+  const totalAdjustCents = resolvedSelections.reduce((sum, s) => sum + s.priceAdjustCents, 0)
+  const finalPriceCents = variant.basePriceCents + totalAdjustCents - (input.appointmentType === 'pickup' ? pickupFeeCents : 0)
 
   return {
     ok: true,
     variantId: variant.id,
     productName: variant.product.name,
     variantName: variant.name,
-    finalPrice,
+    finalPriceCents,
     currency: settings?.currency || 'SGD',
-    resolvedSelections: resolvedSelections.map(({ question, answer, priceAdjust }) => ({ question, answer, priceAdjust })),
+    resolvedSelections: resolvedSelections.map(({ question, answer, priceAdjustCents }) => ({ question, answer, priceAdjustCents })),
   }
 }

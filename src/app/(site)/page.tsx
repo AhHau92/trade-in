@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface Category {
   id: string
@@ -36,7 +37,7 @@ export default function HomePage() {
               className="group border-2 border-gray-200 rounded-2xl p-6 text-center hover:border-black transition-all hover:shadow-lg"
             >
               {cat.image ? (
-                <img src={cat.image} alt={cat.name} className="w-20 h-20 object-contain mx-auto mb-4 group-hover:scale-110 transition-transform" />
+                <Image src={cat.image} alt={cat.name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4 group-hover:scale-110 transition-transform" />
               ) : (
                 <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">📱</div>
               )}

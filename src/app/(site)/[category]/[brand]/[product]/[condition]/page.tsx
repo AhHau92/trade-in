@@ -2,20 +2,22 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { formatMoney } from '@/lib/money'
 
-interface TemplateOption { id: string; label: string; priceAdjust: number; isWhatsapp: boolean }
+interface TemplateOption { id: string; label: string; priceAdjustCents: number; isWhatsapp: boolean }
 interface Template { id: string; title: string; options: TemplateOption[] }
-interface Override { id: string; templateOptionId: string; priceAdjust: number; isHidden: boolean; isWhatsapp: boolean }
+interface Override { id: string; templateOptionId: string; priceAdjustCents: number; isHidden: boolean; isWhatsapp: boolean }
 interface VariantQuestion { id: string; templateId: string; template: Template; overrides: Override[] }
-interface Variant { id: string; name: string; basePrice: number; questions: VariantQuestion[] }
+interface Variant { id: string; name: string; basePriceCents: number; questions: VariantQuestion[] }
 interface Product { id: string; name: string; slug: string; condition: string; variantLabel: string; image: string | null; brand: { name: string; slug: string }; variants: Variant[] }
 
 export default function ProductPage({ params }: { params: Promise<{ category: string; brand: string; product: string; condition: string }> }) {
   const { category, brand, product: productSlug, condition } = use(params)
   const router = useRouter()
   const [productData, setProductData] = useState<Product | null>(null)
-  const [settings, setSettings] = useState({ pickupFee: 0, currency: 'SGD', whatsappNumber: '' })
+  const [settings, setSettings] = useState({ pickupFeeCents: 0, currency: 'SGD', whatsappNumber: '' })
   const [loading, setLoading] = useState(true)
 
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null)
@@ -43,8 +45,8 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
 
   const hasWhatsapp = Object.values(selectedOptions).some(opt => opt.isWhatsapp)
   const allQuestionsAnswered = selectedVariant && selectedVariant.questions.every(vq => selectedOptions[vq.templateId])
-  const totalAdjust = Object.values(selectedOptions).reduce((sum, opt) => sum + (opt.isWhatsapp ? 0 : opt.priceAdjust), 0)
-  const finalPrice = selectedVariant ? selectedVariant.basePrice + totalAdjust : 0
+  const totalAdjustCents = Object.values(selectedOptions).reduce((sum, opt) => sum + (opt.isWhatsapp ? 0 : opt.priceAdjustCents), 0)
+  const finalPriceCents = selectedVariant ? selectedVariant.basePriceCents + totalAdjustCents : 0
 
   const progressTotal = selectedVariant ? selectedVariant.questions.length + 1 : 1
   const progressDone = (selectedVariant ? 1 : 0) + Object.keys(selectedOptions).length
@@ -57,17 +59,17 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
       variantName: selectedVariant.name,
       productImage: productData?.image,
       condition,
-      finalPrice,
+      finalPriceCents,
       selectedOptions: Object.entries(selectedOptions).map(([templateId, opt]) => {
         const question = selectedVariant.questions.find(vq => vq.templateId === templateId)
         // templateId/optionId are what actually get sent to the server when
-        // booking; question/answer/priceAdjust here are only used for the
-        // client-side checklist display and are re-derived server-side from
-        // the IDs, never trusted as-is.
-        return { templateId, optionId: opt.id, question: question?.template.title, answer: opt.label, priceAdjust: opt.priceAdjust }
+        // booking; question/answer/priceAdjustCents here are only used for
+        // the client-side checklist display and are re-derived server-side
+        // from the IDs, never trusted as-is.
+        return { templateId, optionId: opt.id, question: question?.template.title, answer: opt.label, priceAdjustCents: opt.priceAdjustCents }
       }),
       currency: settings.currency,
-      pickupFee: settings.pickupFee,
+      pickupFeeCents: settings.pickupFeeCents,
     }
     localStorage.setItem('tradeInBooking', JSON.stringify(bookingData))
     router.push('/booking')
@@ -88,7 +90,7 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
       <div className="bg-gray-50 rounded-2xl p-6 mb-8 mt-4">
           <div className="flex items-center gap-6">
             {productData.image ? (
-              <img src={productData.image} alt={productData.name} className="w-24 h-24 object-contain" />
+              <Image src={productData.image} alt={productData.name} width={96} height={96} className="w-24 h-24 object-contain" />
             ) : (
               <div className="w-24 h-24 bg-gray-200 rounded-xl flex items-center justify-center text-3xl">📱</div>
             )}
@@ -119,7 +121,7 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
                     className={`border-2 rounded-xl p-4 text-left transition ${selectedVariant?.id === v.id ? 'border-black bg-black text-white' : 'border-gray-200 hover:border-black'}`}>
                     <p className="font-medium">{v.name}</p>
                     <p className={`text-sm ${selectedVariant?.id === v.id ? 'text-gray-300' : 'text-gray-500'}`}>
-                      Up to {settings.currency} {v.basePrice.toLocaleString()}
+                      Up to {settings.currency} {formatMoney(v.basePriceCents)}
                     </p>
                   </button>
                 ))}
@@ -139,7 +141,7 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
                       const override = vq.overrides?.find(o => o.templateOptionId === opt.id)
                       return (
                         <button key={opt.id}
-                          onClick={() => selectOption(vq.templateId, { ...opt, priceAdjust: override ? override.priceAdjust : opt.priceAdjust, isWhatsapp: override ? override.isWhatsapp : opt.isWhatsapp })}
+                          onClick={() => selectOption(vq.templateId, { ...opt, priceAdjustCents: override ? override.priceAdjustCents : opt.priceAdjustCents, isWhatsapp: override ? override.isWhatsapp : opt.isWhatsapp })}
                           className={`border-2 rounded-xl p-4 text-left transition ${selectedOptions[vq.templateId]?.id === opt.id ? 'border-black bg-black text-white' : 'border-gray-200 hover:border-black'}`}>
                           <p className="font-medium">{opt.label}</p>
                         </button>
@@ -166,15 +168,15 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
               )}
               {allQuestionsAnswered && !hasWhatsapp && (
                 <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Base</span><span>{settings.currency} {selectedVariant?.basePrice.toLocaleString()}</span></div>
-                  {totalAdjust !== 0 && <div className="flex justify-between text-sm text-red-400 mb-1"><span>Adjustments</span><span>{totalAdjust}</span></div>}
-                  <div className="flex justify-between text-xl font-bold mt-3 pt-3 border-t border-gray-700"><span>TOTAL</span><span className="text-green-400">{settings.currency} {finalPrice.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Base</span><span>{settings.currency} {formatMoney(selectedVariant?.basePriceCents || 0)}</span></div>
+                  {totalAdjustCents !== 0 && <div className="flex justify-between text-sm text-red-400 mb-1"><span>Adjustments</span><span>{formatMoney(totalAdjustCents)}</span></div>}
+                  <div className="flex justify-between text-xl font-bold mt-3 pt-3 border-t border-gray-700"><span>TOTAL</span><span className="text-green-400">{settings.currency} {formatMoney(finalPriceCents)}</span></div>
                 </div>
               )}
               {allQuestionsAnswered && hasWhatsapp ? (
                 <button onClick={handleWhatsApp} className="w-full bg-green-500 text-white py-3 rounded-xl font-semibold hover:bg-green-600 transition">💬 WhatsApp for Quote</button>
               ) : allQuestionsAnswered ? (
-                <button onClick={handleTradeIn} className="w-full bg-white text-black py-3 rounded-xl font-semibold hover:bg-gray-100 transition">Trade In for {settings.currency} {finalPrice.toLocaleString()}</button>
+                <button onClick={handleTradeIn} className="w-full bg-white text-black py-3 rounded-xl font-semibold hover:bg-gray-100 transition">Trade In for {settings.currency} {formatMoney(finalPriceCents)}</button>
               ) : (
                 <div className="text-center text-gray-500 text-sm">Complete all selections to see your quote</div>
               )}

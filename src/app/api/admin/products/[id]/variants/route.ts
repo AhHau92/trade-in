@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: productId } = await params
   const body = await req.json()
   const variant = await prisma.variant.create({
-    data: { name: body.name, basePrice: body.basePrice, order: body.order || 0, productId },
+    data: { name: body.name, basePriceCents: body.basePriceCents, order: body.order || 0, productId },
   })
   return NextResponse.json(variant)
 }

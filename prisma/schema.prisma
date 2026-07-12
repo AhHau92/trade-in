@@ -26,7 +26,7 @@ model Admin {
 // ============ SETTINGS ============
 model Settings {
   id              String  @id @default(cuid())
-  pickupFee       Float   @default(0)
+  pickupFeeCents  Int     @default(0) // stored in cents, e.g. 1000 = $10.00
   currency        String  @default("SGD")
   whatsappNumber  String  @default("")
   notifyEmail     String  @default("")
@@ -95,9 +95,9 @@ model Product {
 // ============ VARIANT ============
 // e.g. iPhone 17 Pro Max 512GB, 1TB
 model Variant {
-  id          String   @id @default(cuid())
-  name        String   // e.g. "512GB", "1TB"
-  basePrice   Float    // base trade-in price
+  id             String   @id @default(cuid())
+  name           String   // e.g. "512GB", "1TB"
+  basePriceCents Int      // base trade-in price, stored in cents (e.g. 150000 = $1,500.00)
   isActive    Boolean  @default(true)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
@@ -162,7 +162,7 @@ model Booking {
   // code should fall back to variant.product.name / variant.name for those.
   productName     String?
   variantName     String?
-  finalPrice      Float
+  finalPriceCents Int      // stored in cents
   selectedOptions Json     // store selected question options
 
   // customer info
@@ -186,6 +186,17 @@ model Booking {
   updatedAt       DateTime @updatedAt
 }
 
+// ============ DAILY BOOKING COUNTER ============
+// Backs the human-readable sequential suffix in bookingRef (TI-YYYYMMDD-NNN).
+// Incremented atomically via upsert inside a transaction so two concurrent
+// bookings on the same day can never be handed the same number — unlike the
+// old approach of COUNT()'ing existing rows, which raced under concurrent
+// requests and could also reissue a used number if a row were ever removed.
+model DailyBookingCounter {
+  date  String @id // "YYYYMMDD"
+  count Int    @default(0)
+}
+
 // ============ QUESTION TEMPLATE ============
 model QuestionTemplate {
   id        String   @id @default(cuid())
@@ -200,10 +211,10 @@ model QuestionTemplate {
 
 // ============ QUESTION TEMPLATE OPTION ============
 model QuestionTemplateOption {
-  id          String   @id @default(cuid())
-  label       String
-  priceAdjust Float    @default(0)
-  isWhatsapp  Boolean  @default(false)
+  id               String   @id @default(cuid())
+  label            String
+  priceAdjustCents Int      @default(0) // stored in cents
+  isWhatsapp       Boolean  @default(false)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -233,7 +244,7 @@ model VariantQuestionOverride {
   variantQuestion   VariantQuestion @relation(fields: [variantQuestionId], references: [id], onDelete: Cascade)
   templateOptionId  String
   templateOption    QuestionTemplateOption @relation(fields: [templateOptionId], references: [id], onDelete: Cascade)
-  priceAdjust       Float    // custom price for this variant
+  priceAdjustCents  Int      // custom price for this variant, stored in cents
   isHidden          Boolean  @default(false)  // hide this option for this variant
   isWhatsapp        Boolean  @default(false)  // override whatsapp setting
 

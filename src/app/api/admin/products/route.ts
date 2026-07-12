@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   const condition = searchParams.get('condition') || ''
   const status = searchParams.get('status') || ''
 
-  const where: any = {}
+  const where: Prisma.ProductWhereInput = {}
   if (search) where.name = { contains: search, mode: 'insensitive' }
   if (categoryId) where.categoryId = categoryId
   if (brandId) where.brandId = brandId

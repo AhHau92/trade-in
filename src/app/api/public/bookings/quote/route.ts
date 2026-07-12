@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveBookingPricing } from '@/lib/bookingPricing'
+import { bookingQuoteSchema, firstZodError } from '@/schemas/booking'
+import { readJsonBody } from '@/lib/readJsonBody'
 
 // Price-preview endpoint: validates the customer's selections and returns
 // the authoritative server price WITHOUT creating a booking. The booking
@@ -8,12 +10,18 @@ import { resolveBookingPricing } from '@/lib/bookingPricing'
 // they saw while browsing, instead of either silently booking at a
 // different price or hard-rejecting a legitimate customer.
 export async function POST(req: NextRequest) {
-  const body = await req.json()
+  const parsedBody = await readJsonBody(req)
+  if (!parsedBody.ok) return parsedBody.response
+
+  const parsed = bookingQuoteSchema.safeParse(parsedBody.body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstZodError(parsed.error) }, { status: 400 })
+  }
 
   const result = await resolveBookingPricing({
-    variantId: body.variantId,
-    appointmentType: body.appointmentType,
-    selectedOptions: body.selectedOptions,
+    variantId: parsed.data.variantId,
+    appointmentType: parsed.data.appointmentType,
+    selectedOptions: parsed.data.selectedOptions,
   })
 
   if (!result.ok) {
@@ -21,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    finalPrice: result.finalPrice,
+    finalPriceCents: result.finalPriceCents,
     productName: result.productName,
     variantName: result.variantName,
     currency: result.currency,

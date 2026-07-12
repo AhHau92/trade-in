@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 interface ImageUploadProps {
   value: string
@@ -36,7 +37,7 @@ export default function ImageUpload({ value, onChange, folder = 'trade-in' }: Im
     <div>
       {value ? (
         <div className="relative inline-block">
-          <img src={value} alt="Upload" className="w-24 h-24 object-cover rounded-lg border" />
+          <Image src={value} alt="Upload" width={96} height={96} className="w-24 h-24 object-cover rounded-lg border" />
           <button
             type="button"
             onClick={() => onChange('')}

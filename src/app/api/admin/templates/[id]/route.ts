@@ -3,6 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type IncomingTemplateOption = {
+  id?: string
+  label: string
+  priceAdjustCents?: number
+  isWhatsapp?: boolean
+}
+
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -21,7 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
-  const incomingOptions: any[] = body.options || []
+  const incomingOptions: IncomingTemplateOption[] = body.options || []
 
   // Incrementally sync options instead of delete-all-then-recreate. Recreating
   // options assigns them brand-new IDs, which cascade-deletes any
@@ -47,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             where: { id: opt.id },
             data: {
               label: opt.label,
-              priceAdjust: opt.priceAdjust || 0,
+              priceAdjustCents: opt.priceAdjustCents || 0,
               isWhatsapp: opt.isWhatsapp || false,
               order: i,
             },
@@ -55,7 +62,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         : prisma.questionTemplateOption.create({
             data: {
               label: opt.label,
-              priceAdjust: opt.priceAdjust || 0,
+              priceAdjustCents: opt.priceAdjustCents || 0,
               isWhatsapp: opt.isWhatsapp || false,
               order: i,
               templateId: id,
