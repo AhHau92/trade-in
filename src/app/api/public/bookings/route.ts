@@ -129,7 +129,10 @@ export async function POST(req: NextRequest) {
         address: booking.address || undefined,
         collectionDate: booking.collectionDate?.toLocaleDateString(),
         collectionTime: booking.collectionTime || undefined,
-        selectedOptions: booking.selectedOptions,
+        // selectedOptions is stored as a Prisma Json column, so Prisma types it as
+        // the generic JsonValue. We wrote it ourselves a few lines up from
+        // pricing.resolvedSelections (ResolvedSelection[]), so the shape is known.
+        selectedOptions: booking.selectedOptions as unknown as { question: string; answer: string }[],
       }, settings.notifyEmail)
     }
   } catch (error) {

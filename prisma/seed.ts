@@ -24,7 +24,7 @@ async function main() {
     update: {},
     create: {
       id: 'default',
-      pickupFee: 10,
+      pickupFeeCents: 1000,
       currency: 'SGD',
       whatsappNumber: '+6591234567',
     },

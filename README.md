@@ -1,36 +1,219 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trade-In — Device Trade-In Booking Platform
 
-## Getting Started
+A full-stack Next.js app that lets customers get an instant trade-in quote for
+a phone or laptop and book a drop-off (in-store) or pickup appointment, plus
+an admin panel to manage the product catalog, pricing, branches, and incoming
+bookings.
 
-First, run the development server:
+## 1. What this is
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+A two-sided e-commerce-style booking system, structurally similar to what
+carriers/retailers (e.g. Apple Trade In, Carousell, ShopBack) run for device
+trade-ins:
+
+- **Public storefront** — browse by category (Phone / Macbook) → brand →
+  product → condition, answer a few condition questions (screen, battery,
+  accessories, etc.), get a live price, and book either a store visit or a
+  home pickup.
+- **Admin panel** — manage categories, brands, products, variants
+  (storage/capacity tiers), reusable "question templates" (condition
+  questions + price adjustments), branches, bookings, site settings, and
+  admin accounts (role-based: `admin` / `superadmin`, with one hardcoded
+  root superadmin who alone can promote/demote roles).
+
+## 2. Business problem it solves
+
+Trade-in pricing is inherently variable — a cracked screen or a missing
+charger changes the payout — and a naive implementation lets that pricing
+be **client-controlled**, which is a direct financial exploit (a customer
+edits `finalPrice` in DevTools before submitting and the business pays out
+more than the device is worth). This project's core design problem was
+building a booking flow where:
+
+- price is always **computed and re-verified server-side**, never trusted
+  from the client;
+- concurrent bookings never collide on the same human-readable reference
+  number;
+- money is never silently corrupted by floating-point rounding;
+- the admin side lets non-technical staff manage a large, frequently
+  changing product/pricing catalog without touching code.
+
+## 3. Complex design work / what makes this more than a CRUD demo
+
+- **Server-authoritative pricing** (`src/lib/bookingPricing.ts`). Both the
+  price-preview endpoint (`/api/public/bookings/quote`) and the actual
+  booking-creation endpoint (`/api/public/bookings`) call the *same*
+  `resolveBookingPricing()` function, so a quote and the final charged price
+  can never drift apart. The client only ever sends *which* variant and
+  *which* answers were picked — never a price. If a customer's local price
+  is stale (e.g. an admin changed pricing mid-session), the booking flow
+  quotes first, and only shows a confirm-price-changed modal if the number
+  actually differs — it doesn't hard-reject.
+- **Race-condition-free sequential booking references.** Booking refs look
+  like `TI-20260712-011` (day + zero-padded sequence) rather than a random
+  UUID, because staff need to read them off over the phone. That ruled out
+  the naive `COUNT(*) + 1` approach, which two concurrent requests can
+  read identically and then both try to insert the same ref. Instead, a
+  `DailyBookingCounter` row is `upsert`'d per calendar day — Postgres
+  serializes concurrent upserts on the same primary key via row locking, so
+  no two requests can ever be handed the same number. The counter
+  increment is deliberately **not** wrapped in the same transaction as the
+  booking insert; if it were, a `bookingRef` collision would roll back the
+  counter increment too and a retry would recompute the exact same doomed
+  number, looping forever. Keeping them separate means a collision only
+  costs a small gap in the sequence, and a bounded retry loop (10 attempts)
+  always makes forward progress. Verified under 12 concurrent requests with
+  no collisions.
+- **Money stored as integer cents, never floats.** Every price field
+  (`basePriceCents`, `finalPriceCents`, `pickupFeeCents`,
+  `priceAdjustCents`) is an `Int` in the schema, converted at the UI
+  boundary via a single shared module (`src/lib/money.ts`). Summing option
+  adjustments and subtracting a pickup fee in floating-point dollars is
+  exactly the kind of arithmetic where `0.1 + 0.2 !== 0.3` silently
+  corrupts a real payout; integer cents make that class of bug impossible.
+- **Strict input validation on public, unauthenticated endpoints.** The
+  booking endpoints are the only part of the system reachable from the open
+  internet without auth, so every field is validated with Zod
+  (`src/schemas/booking.ts`) — bounded string lengths, real email/phone/date
+  formats, a discriminated union so `store` vs `pickup` bookings each
+  require their own correct fields — plus a body-size guard
+  (`src/lib/readJsonBody.ts`) before the payload ever touches Prisma.
+- **In-place option syncing instead of delete-and-recreate.** Question
+  template options keep stable IDs across edits, because recreating them
+  would cascade-delete any per-variant price overrides pointing at the old
+  IDs — i.e. saving a template with `isActive` toggled would silently wipe
+  unrelated pricing customizations. Options are diffed and updated in
+  place, only deleting the ones actually removed.
+
+## 4. Demo
+
+Not deployed yet — this currently runs locally only (see [Running Locally](#9-running-locally)).
+
+## 5. Test account
+
+Seeded via `npx prisma db seed` (see `prisma/seed.ts`):
+
+| Field | Value |
+|---|---|
+| URL | `/admin/login` |
+| Email | `admin@tradein.com` |
+| Password | `admin123` |
+| Role | `superadmin` (root admin — can manage other admins' roles) |
+
+Change this password before ever deploying anywhere public.
+
+## 6. Architecture
+
+```
+┌─────────────────────────────┐        ┌──────────────────────────────┐
+│   Public storefront (SSR)   │        │   Admin panel (protected)     │
+│  (site)/…/[category]/[brand]│        │  admin/(protected)/…          │
+│  /[product]/[condition]     │        │  categories, brands, products,│
+│  /booking                   │        │  templates, branches,         │
+└──────────────┬───────────────┘        │  bookings, settings, admins   │
+               │                        └───────────────┬────────────────┘
+               │ fetch                                   │ fetch (session-gated)
+               ▼                                          ▼
+        ┌─────────────────────────────────────────────────────────┐
+        │                    Next.js API routes                    │
+        │  /api/public/*        (no auth, Zod-validated, price      │
+        │                         always re-derived server-side)    │
+        │  /api/admin/*         (NextAuth session required)         │
+        │  /api/auth/[...nextauth]  (credentials + bcrypt + JWT)    │
+        └───────────────────────────┬────────────────────────────┘
+                                     │ Prisma Client
+                                     ▼
+                          ┌────────────────────┐
+                          │  Postgres (Neon)    │
+                          │  Admin, Booking,     │
+                          │  Category/Brand/     │
+                          │  Product/Variant,     │
+                          │  QuestionTemplate +   │
+                          │  Options/Overrides,   │
+                          │  DailyBookingCounter, │
+                          │  Settings, Branch     │
+                          └────────────────────┘
+
+  Image uploads → Cloudinary        Emails (booking confirm/notify) → Resend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 ·
+Prisma 5 + Postgres (Neon) · NextAuth (credentials + JWT) · Zod · Cloudinary
+· Resend · `@dnd-kit` for admin drag-to-reorder.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 7. Key technical decisions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Decision | Why |
+|---|---|
+| Integer cents over `Decimal`/`Float` for money | Simpler to reason about and control end-to-end (client and server both just do integer math) than `Decimal`, and immune to binary float rounding that `Float` has. |
+| Per-day counter table over UUID booking refs | Staff need to read a booking ref aloud over the phone; UUIDs aren't usable for that, so the harder-but-necessary path was making sequential numbering safe under concurrency instead of giving up sequential numbering. |
+| Price always recomputed server-side | The only price a customer can affect is *which options they pick* — never the number itself. Closes a direct financial exploit. |
+| Zod discriminated unions for booking payloads | `store` and `pickup` appointments need different required fields (branch+visit date vs. address+collection date/time); a discriminated union enforces that at the type level, not just at runtime. |
+| NextAuth JWT sessions + module augmentation | Avoids `as any` casts on `session.user` throughout the codebase by declaring the custom `id`/`role` fields once (`src/types/next-auth.d.ts`). |
+| In-place option syncing (not delete+recreate) | Recreating rows would cascade-delete per-variant price overrides tied to old IDs, silently corrupting pricing data on unrelated edits. |
 
-## Learn More
+## 8. Screenshots
 
-To learn more about Next.js, take a look at the following resources:
+_Add screenshots here — e.g. drag PNGs into `docs/screenshots/` and reference
+them below. (Auto-capture wasn't available in this session because the
+screenshot tool couldn't persist images to disk; run the app locally and
+capture manually.)_
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```md
+![Homepage — category selection](docs/screenshots/homepage.png)
+![Product page — condition questions + live price](docs/screenshots/product.png)
+![Booking confirmation](docs/screenshots/booking-confirmed.png)
+![Admin dashboard](docs/screenshots/admin-dashboard.png)
+![Admin — product/variant pricing](docs/screenshots/admin-product.png)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 9. Running locally
 
-## Deploy on Vercel
+**Prerequisites:** Node 20+, a Postgres database (this project was built
+against [Neon](https://neon.tech)'s free tier), a [Cloudinary](https://cloudinary.com)
+account (image uploads), and a [Resend](https://resend.com) API key (email —
+optional, the app degrades gracefully if `notifyEmail` isn't set).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+git clone https://github.com/AhHau92/trade-in.git
+cd trade-in
+npm install
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+cp .env.example .env
+# fill in DATABASE_URL, NEXTAUTH_SECRET, Cloudinary and Resend keys
+
+npx prisma migrate deploy   # apply migrations
+npx prisma db seed          # creates the root admin (see §5) + default settings
+
+npm run dev
+```
+
+Then open `http://localhost:3000` for the storefront, or
+`http://localhost:3000/admin/login` for the admin panel.
+
+```bash
+npm run lint    # ESLint — passes clean
+npm run build   # production build + TypeScript typecheck
+```
+
+## 10. Known limitations
+
+- **No automated test suite yet.** There's no `npm run test` script —
+  correctness so far has been verified by hand (manual API/UI testing,
+  including concurrency testing for the booking-ref race condition and a
+  live price-tampering attempt via DevTools). Adding unit tests for
+  `bookingPricing.ts` and the Zod schemas would be the natural next step.
+- **Not deployed.** Runs locally only; no live demo URL yet.
+- **Email sending uses Resend's sandbox sender** (`onboarding@resend.dev`),
+  which only reliably delivers to the account owner's own verified email in
+  Resend's free tier. Production use needs a verified custom sending domain.
+- **Single hardcoded root admin** (`ROOT_ADMIN_EMAIL` in `src/lib/auth.ts`)
+  who alone can change other admins' roles — fine for a small team, not a
+  general permissions system.
+- **No rate limiting** on the public booking/quote endpoints beyond a
+  request body size cap; a determined attacker could still spam bookings.
+- Built and tested primarily on macOS (darwin-arm64) with a Neon serverless
+  Postgres backend; the Prisma engine and Next.js SWC binaries are
+  platform-specific native binaries, so cross-platform dev environments
+  (e.g. Linux ARM containers) may need `npm install` to fetch the matching
+  native package before `npm run build` / `npx prisma migrate dev` work.
