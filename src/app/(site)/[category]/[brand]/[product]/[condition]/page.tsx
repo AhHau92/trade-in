@@ -60,7 +60,11 @@ export default function ProductPage({ params }: { params: Promise<{ category: st
       finalPrice,
       selectedOptions: Object.entries(selectedOptions).map(([templateId, opt]) => {
         const question = selectedVariant.questions.find(vq => vq.templateId === templateId)
-        return { question: question?.template.title, answer: opt.label, priceAdjust: opt.priceAdjust }
+        // templateId/optionId are what actually get sent to the server when
+        // booking; question/answer/priceAdjust here are only used for the
+        // client-side checklist display and are re-derived server-side from
+        // the IDs, never trusted as-is.
+        return { templateId, optionId: opt.id, question: question?.template.title, answer: opt.label, priceAdjust: opt.priceAdjust }
       }),
       currency: settings.currency,
       pickupFee: settings.pickupFee,

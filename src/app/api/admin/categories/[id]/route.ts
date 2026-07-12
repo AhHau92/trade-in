@@ -27,6 +27,15 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+
+  const productCount = await prisma.product.count({ where: { categoryId: id } })
+  if (productCount > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: ${productCount} product${productCount === 1 ? '' : 's'} still belong to this category. Move or delete them first, or deactivate the category instead.` },
+      { status: 400 },
+    )
+  }
+
   await prisma.category.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

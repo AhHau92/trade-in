@@ -10,7 +10,7 @@ interface BookingData {
   productImage: string | null
   condition: string
   finalPrice: number
-  selectedOptions: { question: string; answer: string; priceAdjust: number }[]
+  selectedOptions: { templateId: string; optionId: string; question: string; answer: string; priceAdjust: number }[]
   currency: string
   pickupFee: number
 }
@@ -32,6 +32,15 @@ export default function BookingPage() {
     address: '', collectionDate: '', collectionTime: '',
   })
 
+  // Once we've asked the server for a fresh price quote, this holds the
+  // authoritative number so the UI always reflects reality (whether the
+  // customer goes on to confirm or cancels the price-change dialog).
+  // Reset whenever appointmentType changes since that changes whether the
+  // pickup fee applies.
+  const [confirmedPrice, setConfirmedPrice] = useState<number | null>(null)
+  const [quoting, setQuoting] = useState(false)
+  const [priceConfirm, setPriceConfirm] = useState<{ oldPrice: number; newPrice: number } | null>(null)
+
   useEffect(() => {
     const saved = localStorage.getItem('tradeInBooking')
     if (saved) {
@@ -50,43 +59,95 @@ export default function BookingPage() {
     })
   }, [])
 
-  const displayPrice = appointmentType === 'pickup' && bookingData
-    ? bookingData.finalPrice - settings.pickupFee
-    : bookingData?.finalPrice || 0
+  useEffect(() => {
+    setConfirmedPrice(null)
+  }, [appointmentType])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!bookingData) return
+  const displayPrice = confirmedPrice !== null
+    ? confirmedPrice
+    : appointmentType === 'pickup' && bookingData
+      ? bookingData.finalPrice - settings.pickupFee
+      : bookingData?.finalPrice || 0
+
+  const buildPayload = () => {
+    if (!bookingData) return null
+    return {
+      appointmentType,
+      variantId: bookingData.variantId,
+      selectedOptions: bookingData.selectedOptions.map(o => ({ templateId: o.templateId, optionId: o.optionId })),
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      postcode: form.postcode,
+      branchId: appointmentType === 'store' ? form.branchId : null,
+      visitDate: appointmentType === 'store' ? form.visitDate : null,
+      address: appointmentType === 'pickup' ? form.address : null,
+      collectionDate: appointmentType === 'pickup' ? form.collectionDate : null,
+      collectionTime: appointmentType === 'pickup' ? form.collectionTime : null,
+    }
+  }
+
+  // Actually creates the booking. Only ever called after either (a) a fresh
+  // quote matched what the customer already saw, or (b) the customer
+  // explicitly confirmed a price change in the dialog.
+  const createBooking = async () => {
+    const payload = buildPayload()
+    if (!payload) return
     setSubmitting(true)
 
+    // NOTE: We deliberately do NOT send finalPrice/productName/variantName —
+    // those are display-only values computed in the browser. The server
+    // re-derives the price and names from the database using variantId +
+    // selectedOptions (template/option IDs only), so nothing price-related
+    // here can be tampered with via DevTools.
     const res = await fetch('/api/public/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appointmentType,
-        variantId: bookingData.variantId,
-        productName: bookingData.productName,
-        variantName: bookingData.variantName,
-        finalPrice: displayPrice,
-        selectedOptions: bookingData.selectedOptions,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        postcode: form.postcode,
-        branchId: appointmentType === 'store' ? form.branchId : null,
-        visitDate: appointmentType === 'store' ? form.visitDate : null,
-        address: appointmentType === 'pickup' ? form.address : null,
-        collectionDate: appointmentType === 'pickup' ? form.collectionDate : null,
-        collectionTime: appointmentType === 'pickup' ? form.collectionTime : null,
-      }),
+      body: JSON.stringify(payload),
     })
-
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     setSubmitting(false)
 
-    if (data.bookingRef) {
+    if (res.ok && data.bookingRef) {
       setSuccess(data.bookingRef)
       localStorage.removeItem('tradeInBooking')
+    } else {
+      alert(data.error || 'Something went wrong creating your booking. Please try again.')
+    }
+  }
+
+  // Submit = get a fresh authoritative price first. If it still matches what
+  // the customer sees on screen, book immediately. If it changed (price
+  // edited in the backend, an option got removed, etc.), show them the new
+  // price and let them decide whether to continue — never book at a
+  // different price than what they agreed to, and never hard-block a
+  // legitimate customer just because something shifted.
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const payload = buildPayload()
+    if (!payload) return
+
+    setQuoting(true)
+    const res = await fetch('/api/public/bookings/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const quote = await res.json().catch(() => ({}))
+    setQuoting(false)
+
+    if (!res.ok) {
+      alert(quote.error || 'This trade-in is no longer available. Please start again.')
+      return
+    }
+
+    const oldPrice = displayPrice
+    setConfirmedPrice(quote.finalPrice)
+
+    if (quote.finalPrice === oldPrice) {
+      await createBooking()
+    } else {
+      setPriceConfirm({ oldPrice, newPrice: quote.finalPrice })
     }
   }
 
@@ -262,11 +323,47 @@ export default function BookingPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={submitting}
+          <button type="submit" disabled={submitting || quoting}
             className="w-full bg-black text-white py-4 rounded-xl font-semibold text-lg hover:bg-gray-800 disabled:opacity-50 transition">
-            {submitting ? 'Submitting...' : 'Submit Booking'}
+            {quoting ? 'Checking latest price...' : submitting ? 'Submitting...' : 'Submit Booking'}
           </button>
         </form>
+
+        {priceConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
+              <div className="text-4xl mb-3">⚠️</div>
+              <h3 className="text-lg font-bold mb-2">Price Has Changed</h3>
+              <p className="text-gray-500 text-sm mb-4">
+                The quote for this trade-in has been updated since you started.
+              </p>
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-1">
+                <div className="flex justify-between text-sm text-gray-400 line-through">
+                  <span>Previous quote</span>
+                  <span>{settings.currency} {priceConfirm.oldPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold">
+                  <span>New quote</span>
+                  <span className="text-green-600">{settings.currency} {priceConfirm.newPrice.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPriceConfirm(null)}
+                  className="flex-1 border py-2.5 rounded-xl hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => { setPriceConfirm(null); await createBooking() }}
+                  className="flex-1 bg-black text-white py-2.5 rounded-xl font-semibold hover:bg-gray-800 transition"
+                >
+                  Continue at New Price
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   )
 }
