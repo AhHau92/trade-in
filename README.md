@@ -1,4 +1,4 @@
-# Trade-In — Device Trade-In Booking Platform
+# DeviceTradeIn — Device Trade-In Booking Platform
 
 A full-stack Next.js app that lets customers get an instant trade-in quote for
 a phone or laptop and book a drop-off (in-store) or pickup appointment, plus
@@ -217,3 +217,14 @@ npm run build   # production build + TypeScript typecheck
   platform-specific native binaries, so cross-platform dev environments
   (e.g. Linux ARM containers) may need `npm install` to fetch the matching
   native package before `npm run build` / `npx prisma migrate dev` work.
+
+## 11. AI-assisted development
+
+AI-assisted development tools were used for implementation acceleration,
+while architecture, data modeling, business rules, validation strategy, and
+testing decisions were designed and reviewed by me. In particular, the
+server-authoritative pricing model, the atomic per-day booking-counter
+design, the integer-cents money representation, and the Zod validation
+strategy on public endpoints (§3 and §7 above) were deliberate design
+choices made to close specific correctness/security problems, not default
+scaffolding.
