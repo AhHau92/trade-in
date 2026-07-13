@@ -24,6 +24,7 @@ export default function BookingPage() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [settings, setSettings] = useState({ pickupFeeCents: 0, currency: 'SGD', whatsappNumber: '' })
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -46,17 +47,36 @@ export default function BookingPage() {
   useEffect(() => {
     const saved = localStorage.getItem('tradeInBooking')
     if (saved) {
-      const data = JSON.parse(saved)
-      setBookingData(data)
-      setSettings({ pickupFeeCents: data.pickupFeeCents, currency: data.currency, whatsappNumber: '' })
+      try {
+        const data = JSON.parse(saved)
+        setBookingData(data)
+        setSettings({ pickupFeeCents: data.pickupFeeCents, currency: data.currency, whatsappNumber: '' })
+      } catch {
+        // corrupted localStorage value — fall through to the "no trade-in
+        // data found" screen below rather than crashing the page.
+        localStorage.removeItem('tradeInBooking')
+      }
+    }
+
+    // A non-2xx response still resolves (not rejects) from fetch(), and its
+    // body may not even be valid JSON — treating it as the real payload
+    // would silently render a broken page instead of showing an error.
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`${url} responded ${res.status}`)
+      return res.json()
     }
 
     Promise.all([
-      fetch('/api/public/branches').then(r => r.json()),
-      fetch('/api/public/settings').then(r => r.json()),
+      fetchJson('/api/public/branches'),
+      fetchJson('/api/public/settings'),
     ]).then(([br, sett]) => {
       setBranches(br)
       setSettings(sett)
+      setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load booking page data:', err)
+      setLoadError(true)
       setLoading(false)
     })
   }, [])
@@ -154,6 +174,18 @@ export default function BookingPage() {
   }
 
   if (loading) return <div className="flex items-center justify-center py-24 text-gray-400">Loading...</div>
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center px-4">
+        <div className="text-5xl mb-2">⚠️</div>
+        <p className="text-gray-500">We couldn&apos;t load the booking page right now.</p>
+        <button onClick={() => window.location.reload()} className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition">
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   if (!bookingData) {
     return (

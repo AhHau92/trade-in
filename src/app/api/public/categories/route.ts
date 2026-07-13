@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getStorefrontCategories } from '@/lib/storefront'
 
 export async function GET() {
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { order: 'asc' },
-    select: { id: true, name: true, slug: true, image: true },
-  })
+  const categories = await getStorefrontCategories()
   return NextResponse.json(categories)
 }
