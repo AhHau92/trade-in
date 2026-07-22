@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatMoney } from '@/lib/money'
+import TradeInSteps from '@/components/site/TradeInSteps'
 
 interface BookingData {
   variantId: string
@@ -12,7 +13,9 @@ interface BookingData {
   productImage: string | null
   condition: string
   finalPriceCents: number
-  selectedOptions: { templateId: string; optionId: string; question: string; answer: string; priceAdjustCents: number }[]
+  // optionId is present for single-select questions, optionIds for
+  // multi-select questions — QuoteBuilder always sends exactly one of the two.
+  selectedOptions: { templateId: string; optionId?: string; optionIds?: string[]; question: string; answer: string; priceAdjustCents: number }[]
   currency: string
   pickupFeeCents: number
 }
@@ -96,7 +99,9 @@ export default function BookingPage() {
     return {
       appointmentType,
       variantId: bookingData.variantId,
-      selectedOptions: bookingData.selectedOptions.map(o => ({ templateId: o.templateId, optionId: o.optionId })),
+      selectedOptions: bookingData.selectedOptions.map(o =>
+        o.optionIds ? { templateId: o.templateId, optionIds: o.optionIds } : { templateId: o.templateId, optionId: o.optionId },
+      ),
       name: form.name,
       email: form.email,
       phone: form.phone,
@@ -199,6 +204,7 @@ export default function BookingPage() {
   if (success) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <TradeInSteps current={4} />
         <div className="text-5xl mb-4">✅</div>
         <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
         <p className="text-gray-500 mb-4">Your reference number is:</p>
@@ -216,17 +222,7 @@ export default function BookingPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <button onClick={() => window.history.back()} className="text-sm text-gray-500 hover:text-black mb-4">← Back</button>
-        {/* Progress */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= 3 ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>
-                {step}
-              </div>
-              {step < 4 && <div className={`w-16 h-0.5 ${step < 4 ? 'bg-black' : 'bg-gray-200'}`} />}
-            </div>
-          ))}
-        </div>
+        <TradeInSteps current={4} />
 
         <h2 className="text-2xl font-bold text-center mb-2">Book Your Trade-In</h2>
         <p className="text-gray-500 text-center mb-8">Please confirm your details below and submit the form.</p>

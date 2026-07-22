@@ -7,10 +7,19 @@ import { z } from 'zod'
 // pick" (price itself is re-derived server-side in bookingPricing.ts, not
 // validated here).
 
-export const selectedOptionSchema = z.object({
-  templateId: z.string().trim().min(1).max(191),
-  optionId: z.string().trim().min(1).max(191),
-})
+// A question answer is either a single optionId (single-select templates,
+// the original/default shape) or an optionIds array (multi-select
+// templates). Exactly one of the two must be present — refine() below
+// enforces that instead of silently accepting neither.
+export const selectedOptionSchema = z
+  .object({
+    templateId: z.string().trim().min(1).max(191),
+    optionId: z.string().trim().min(1).max(191).optional(),
+    optionIds: z.array(z.string().trim().min(1).max(191)).max(50).optional(),
+  })
+  .refine((v) => Boolean(v.optionId) || (v.optionIds && v.optionIds.length > 0), {
+    message: 'Each question needs at least one selected option',
+  })
 
 const MAX_SELECTED_OPTIONS = 30
 

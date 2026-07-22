@@ -29,14 +29,23 @@ interface Booking {
   // product relation so renaming a product doesn't rewrite past bookings.
   productName: string | null
   variantName: string | null
-  variant: { name: string; product: { name: string } }
+  branchName: string | null
+  // Nullable: the underlying variant/product can be deleted later (the FK is
+  // ON DELETE SET NULL) without touching this booking row — the snapshot
+  // fields above are the source of truth for display. This relation is only
+  // a fallback for bookings made before the snapshot fields existed AND
+  // whose variant hasn't since been deleted.
+  variant: { name: string; product: { name: string } } | null
   branch: { name: string } | null
 }
 
 // Falls back to the live relation for bookings made before the snapshot
-// fields existed.
-const deviceName = (b: Booking) => b.productName || b.variant.product.name
-const deviceVariant = (b: Booking) => b.variantName || b.variant.name
+// fields existed. If both the snapshot and the live variant are gone
+// (variant deleted after the fact, no snapshot), show a clear placeholder
+// instead of crashing on `.product.name` of null.
+const deviceName = (b: Booking) => b.productName || b.variant?.product.name || 'Deleted product'
+const deviceVariant = (b: Booking) => b.variantName || b.variant?.name || 'Deleted variant'
+const branchDisplayName = (b: Booking) => b.branchName || b.branch?.name || null
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -85,6 +94,13 @@ export default function BookingsPage() {
     })
     fetchBookings()
     if (selectedBooking?.id === id) setSelectedBooking({ ...selectedBooking, status })
+  }
+
+  const deleteBooking = async (id: string) => {
+    if (!confirm('Delete this booking? This cannot be undone.')) return
+    await fetch(`/api/admin/bookings/${id}`, { method: 'DELETE' })
+    if (selectedBooking?.id === id) setSelectedBooking(null)
+    fetchBookings()
   }
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -153,7 +169,10 @@ export default function BookingsPage() {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">{formatDate(b.createdAt)}</td>
                 <td className="px-6 py-4">
-                  <button onClick={() => setSelectedBooking(b)} className="text-blue-600 hover:underline text-sm">View</button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setSelectedBooking(b)} className="text-blue-600 hover:underline text-sm">View</button>
+                    <button onClick={() => deleteBooking(b.id)} className="text-red-600 hover:underline text-sm">Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -213,7 +232,7 @@ export default function BookingsPage() {
                 <h3 className="font-medium text-sm text-gray-500 mb-2">Appointment</h3>
                 <div className="text-sm space-y-1">
                   <p><span className="text-gray-500">Type:</span> {selectedBooking.appointmentType === 'store' ? '🏪 Store Visit' : '🚚 Pickup'}</p>
-                  {selectedBooking.branch && <p><span className="text-gray-500">Branch:</span> {selectedBooking.branch.name}</p>}
+                  {branchDisplayName(selectedBooking) && <p><span className="text-gray-500">Branch:</span> {branchDisplayName(selectedBooking)}</p>}
                   {selectedBooking.visitDate && <p><span className="text-gray-500">Visit Date:</span> {new Date(selectedBooking.visitDate).toLocaleDateString()}</p>}
                   {selectedBooking.address && <p><span className="text-gray-500">Address:</span> {selectedBooking.address}</p>}
                   {selectedBooking.collectionDate && <p><span className="text-gray-500">Collection:</span> {new Date(selectedBooking.collectionDate).toLocaleDateString()} {selectedBooking.collectionTime}</p>}
@@ -231,6 +250,11 @@ export default function BookingsPage() {
                   ))}
                 </div>
               </div>
+
+              <button onClick={() => deleteBooking(selectedBooking.id)}
+                className="w-full text-red-600 border border-red-200 rounded-lg py-2 text-sm hover:bg-red-50 transition">
+                Delete booking
+              </button>
             </div>
           </div>
         </div>

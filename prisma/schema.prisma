@@ -78,9 +78,21 @@ model Product {
   slug         String
   condition    String   @default("new")
   variantLabel String   @default("Device Built-In Storage")
+  // Second axis label (e.g. "Colour"). Null = single-axis product (today's
+  // behavior, unaffected) — only set this when the product's variants also
+  // vary along a second dimension (e.g. Storage + Colour).
+  variantLabel2 String?
   image        String?
   isActive     Boolean  @default(true)
   order        Int      @default(0)
+  // Rich content for the single product page: introContent renders above
+  // the quote builder, seoContent renders below it. metaTitle/metaDescription
+  // feed generateMetadata(); all four are optional and fall back to
+  // name-derived defaults, so existing products are unaffected.
+  introContent    String?  @db.Text
+  seoContent      String?  @db.Text
+  metaTitle       String?
+  metaDescription String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   brandId      String
@@ -96,9 +108,20 @@ model Product {
 // e.g. iPhone 17 Pro Max 512GB, 1TB
 model Variant {
   id             String   @id @default(cuid())
-  name           String   // e.g. "512GB", "1TB"
+  name           String   // e.g. "512GB", "1TB" — the first-axis value
+  // Second-axis value (e.g. "Black"), only meaningful when the parent
+  // product's variantLabel2 is set. Null for single-axis products/variants
+  // (today's behavior, unaffected). Several variants can share the same
+  // `name` with different axis2Value — e.g. "256GB"/"Black" and
+  // "256GB"/"Blue" are two separate rows that happen to share a storage tier.
+  axis2Value     String?
   basePriceCents Int      // base trade-in price, stored in cents (e.g. 150000 = $1,500.00)
   isActive    Boolean  @default(true)
+  // When true, this whole variant is quote-via-WhatsApp only — the storefront
+  // skips straight to the WhatsApp CTA instead of the condition questions
+  // (same idea as a whatsapp-only QuestionTemplateOption, but for the entire
+  // variant, e.g. a brand-new device whose trade-in value needs a human).
+  isWhatsappOnly Boolean @default(false)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -154,14 +177,24 @@ model Booking {
   appointmentType String   // "store" | "pickup"
 
   // device info
-  variantId       String
-  variant         Variant   @relation(fields: [variantId], references: [id])
+  // Nullable + ON DELETE SET NULL: a booking is a historical record, so
+  // deleting the product/variant it was made against later shouldn't be
+  // blocked, and shouldn't touch the booking row — it should just detach
+  // this link. Display code must always prefer productName/variantName
+  // (the snapshots below) over this relation; the relation is only useful
+  // while the variant still exists (e.g. re-deriving pricing for a refund).
+  variantId       String?
+  variant         Variant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
   // Snapshots of the product/variant name at the time of booking, so that
   // renaming a product later doesn't rewrite history. Nullable because
   // bookings created before this field existed won't have it — display
   // code should fall back to variant.product.name / variant.name for those.
   productName     String?
   variantName     String?
+  // Same idea as productName/variantName above, but for the branch: if a
+  // branch is renamed/deactivated later, this booking still shows the name
+  // it had at booking time. Only set for appointmentType "store".
+  branchName      String?
   finalPriceCents Int      // stored in cents
   selectedOptions Json     // store selected question options
 
@@ -203,6 +236,12 @@ model QuestionTemplate {
   title     String
   order     Int      @default(0)
   isActive  Boolean  @default(true)
+  // "single" = pick one option (radio-style, existing behavior).
+  // "multi"  = pick any number of options (checkbox-style); their price
+  // adjustments are summed. Defaults to "single" so every template created
+  // before this field existed keeps behaving exactly as before.
+  type      String   @default("single")
+  helpText  String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   options   QuestionTemplateOption[]
@@ -215,12 +254,19 @@ model QuestionTemplateOption {
   label            String
   priceAdjustCents Int      @default(0) // stored in cents
   isWhatsapp       Boolean  @default(false)
+  // Optional richer presentation for this option on the storefront.
+  imageUrl        String?
+  description     String?  @db.Text
+  // Only meaningful when the parent template's type is "multi" — pre-checks
+  // this option when the question first renders.
+  defaultChecked  Boolean  @default(false)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   templateId  String
   template    QuestionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   overrides   VariantQuestionOverride[]
+  variantSubsetEntries VariantQuestionOption[]
 }
 
 // ============ VARIANT-QUESTION (Junction) ============
@@ -232,8 +278,30 @@ model VariantQuestion {
   variant    Variant          @relation(fields: [variantId], references: [id], onDelete: Cascade)
   template   QuestionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   overrides  VariantQuestionOverride[]
+  // false (default) = legacy/unconfigured — storefront shows every option on
+  // the template (today's behavior, unaffected by this feature). true =
+  // admin has explicitly picked a subset via `options` below, so the
+  // storefront shows ONLY those options — e.g. a variant that only offers 5
+  // of a template's 200 colour options.
+  optionsConfigured Boolean @default(false)
+  options    VariantQuestionOption[]
 
   @@unique([variantId, templateId])
+}
+
+// ============ VARIANT QUESTION OPTION (subset) ============
+// Which of the template's options this specific variant-question actually
+// offers. Only consulted when the parent VariantQuestion.optionsConfigured
+// is true; otherwise all template options are shown (see comment above).
+model VariantQuestionOption {
+  id                String   @id @default(cuid())
+  variantQuestionId String
+  variantQuestion   VariantQuestion @relation(fields: [variantQuestionId], references: [id], onDelete: Cascade)
+  templateOptionId  String
+  templateOption    QuestionTemplateOption @relation(fields: [templateOptionId], references: [id], onDelete: Cascade)
+  order             Int      @default(0)
+
+  @@unique([variantQuestionId, templateOptionId])
 }
 
 // ============ VARIANT QUESTION OVERRIDE ============

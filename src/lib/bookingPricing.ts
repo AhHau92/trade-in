@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma'
 // exactly the kind of place (summing option adjustments, subtracting a fee)
 // where that kind of drift would silently corrupt a real customer's payout.
 
-export type SelectedOptionInput = { templateId: string; optionId: string }
+export type SelectedOptionInput = { templateId: string; optionId?: string; optionIds?: string[] }
 
 export type ResolvedSelection = {
   question: string
@@ -52,7 +52,8 @@ export async function resolveBookingPricing(input: {
           typeof o === 'object' &&
           o !== null &&
           typeof (o as SelectedOptionInput).templateId === 'string' &&
-          typeof (o as SelectedOptionInput).optionId === 'string',
+          (typeof (o as SelectedOptionInput).optionId === 'string' ||
+            Array.isArray((o as SelectedOptionInput).optionIds)),
       )
     : []
 
@@ -64,6 +65,7 @@ export async function resolveBookingPricing(input: {
         include: {
           template: { include: { options: true } },
           overrides: true,
+          options: true,
         },
       },
     },
@@ -76,6 +78,12 @@ export async function resolveBookingPricing(input: {
     return { ok: false, status: 400, error: 'This product is no longer available' }
   }
 
+  // A WhatsApp-only variant has no priceable questions at all — the whole
+  // trade-in is quoted over WhatsApp, so there's nothing to resolve here.
+  if (variant.isWhatsappOnly) {
+    return { ok: false, status: 400, error: 'This selection requires a WhatsApp quote and cannot be booked online' }
+  }
+
   const resolvedSelections: (ResolvedSelection & { isWhatsapp: boolean })[] = []
 
   for (const vq of variant.questions) {
@@ -83,17 +91,50 @@ export async function resolveBookingPricing(input: {
     if (!picked) {
       return { ok: false, status: 400, error: `Missing answer for "${vq.template.title}"` }
     }
-    const option = vq.template.options.find((o) => o.id === picked.optionId)
-    if (!option) {
-      return { ok: false, status: 400, error: `Invalid option for "${vq.template.title}"` }
+
+    // Single-select templates carry one optionId; multi-select templates
+    // carry an optionIds array. Normalizing both to an array here means the
+    // rest of this loop (and single-select's existing behavior) is unchanged.
+    const isMulti = vq.template.type === 'multi'
+    const pickedIds = isMulti ? (picked.optionIds || []) : (picked.optionId ? [picked.optionId] : [])
+    if (pickedIds.length === 0) {
+      return { ok: false, status: 400, error: `Missing answer for "${vq.template.title}"` }
     }
-    const override = vq.overrides.find((ov) => ov.templateOptionId === option.id)
-    if (override?.isHidden) {
-      return { ok: false, status: 400, error: 'That option is not available for this device' }
+
+    // If this variant-question has an explicitly configured subset, only
+    // those options are choosable here — otherwise every template option is
+    // fair game (legacy behavior, unaffected by this feature).
+    const allowedOptionIds = vq.optionsConfigured ? new Set(vq.options.map((o) => o.templateOptionId)) : null
+
+    let sumAdjustCents = 0
+    let anyWhatsapp = false
+    const labels: string[] = []
+
+    for (const optionId of pickedIds) {
+      const option = vq.template.options.find((o) => o.id === optionId)
+      if (!option) {
+        return { ok: false, status: 400, error: `Invalid option for "${vq.template.title}"` }
+      }
+      if (allowedOptionIds && !allowedOptionIds.has(option.id)) {
+        return { ok: false, status: 400, error: 'That option is not available for this device' }
+      }
+      const override = vq.overrides.find((ov) => ov.templateOptionId === option.id)
+      if (override?.isHidden) {
+        return { ok: false, status: 400, error: 'That option is not available for this device' }
+      }
+      const priceAdjustCents = override ? override.priceAdjustCents : option.priceAdjustCents
+      const isWhatsapp = override ? override.isWhatsapp : option.isWhatsapp
+      sumAdjustCents += priceAdjustCents
+      if (isWhatsapp) anyWhatsapp = true
+      labels.push(option.label)
     }
-    const priceAdjustCents = override ? override.priceAdjustCents : option.priceAdjustCents
-    const isWhatsapp = override ? override.isWhatsapp : option.isWhatsapp
-    resolvedSelections.push({ question: vq.template.title, answer: option.label, priceAdjustCents, isWhatsapp })
+
+    resolvedSelections.push({
+      question: vq.template.title,
+      answer: labels.join(', '),
+      priceAdjustCents: sumAdjustCents,
+      isWhatsapp: anyWhatsapp,
+    })
   }
 
   if (resolvedSelections.some((s) => s.isWhatsapp)) {
@@ -109,7 +150,10 @@ export async function resolveBookingPricing(input: {
     ok: true,
     variantId: variant.id,
     productName: variant.product.name,
-    variantName: variant.name,
+    // Include the second axis value (e.g. "Black") when this product is
+    // dual-axis, so the persisted booking snapshot doesn't collapse two
+    // different variants (same storage, different colour) to the same name.
+    variantName: variant.product.variantLabel2 && variant.axis2Value ? `${variant.name} / ${variant.axis2Value}` : variant.name,
     finalPriceCents,
     currency: settings?.currency || 'SGD',
     resolvedSelections: resolvedSelections.map(({ question, answer, priceAdjustCents }) => ({ question, answer, priceAdjustCents })),

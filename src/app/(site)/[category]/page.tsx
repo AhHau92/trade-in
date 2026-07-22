@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getCategoryWithBrands } from '@/lib/storefront'
+import TradeInSteps from '@/components/site/TradeInSteps'
 
 export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
   const { category } = await params
@@ -12,6 +13,10 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <Link href="/" className="text-sm text-gray-500 hover:text-black">← Back</Link>
+
+      <div className="mt-6">
+        <TradeInSteps current={1} />
+      </div>
 
       <div className="text-center mb-10 mt-4">
         <h2 className="text-3xl font-bold">{categoryData.name}</h2>

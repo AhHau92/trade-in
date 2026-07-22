@@ -32,11 +32,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: pricing.error }, { status: pricing.status })
   }
 
+  let branchName: string | null = null
   if (data.appointmentType === 'store') {
     const branch = await prisma.branch.findUnique({ where: { id: data.branchId } })
     if (!branch || !branch.isActive) {
       return NextResponse.json({ error: 'Selected branch is not available' }, { status: 400 })
     }
+    branchName = branch.name
   }
 
   // ---- Generate booking reference + create the booking ----
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
     phone: data.phone,
     postcode: data.postcode,
     branchId: data.appointmentType === 'store' ? data.branchId : null,
+    branchName: data.appointmentType === 'store' ? branchName : null,
     visitDate: data.appointmentType === 'store' ? new Date(`${data.visitDate}T00:00:00`) : null,
     address: data.appointmentType === 'pickup' ? data.address : null,
     collectionDate: data.appointmentType === 'pickup' ? new Date(`${data.collectionDate}T00:00:00`) : null,
@@ -115,8 +118,13 @@ export async function POST(req: NextRequest) {
     if (settings?.notifyEmail) {
       await sendBookingNotification({
         bookingRef: booking.bookingRef,
-        productName: booking.variant.product.name,
-        variantName: booking.variant.name,
+        // Use the snapshot fields we just wrote (same values resolveBookingPricing
+        // derived a moment ago), not the `variant` relation — that relation is
+        // now optional (ON DELETE SET NULL, see schema.prisma) since a variant
+        // can be deleted later without touching past bookings, so it's no
+        // longer a reliable source for a notification we're sending right now.
+        productName: booking.productName || booking.variant?.product.name || 'Unknown product',
+        variantName: booking.variantName || booking.variant?.name || 'Unknown variant',
         finalPriceCents: booking.finalPriceCents,
         currency: settings.currency,
         appointmentType: booking.appointmentType,
@@ -124,7 +132,7 @@ export async function POST(req: NextRequest) {
         customerEmail: booking.email,
         customerPhone: booking.phone,
         postcode: booking.postcode,
-        branchName: booking.branch?.name,
+        branchName: booking.branchName || booking.branch?.name,
         visitDate: booking.visitDate?.toLocaleDateString(),
         address: booking.address || undefined,
         collectionDate: booking.collectionDate?.toLocaleDateString(),

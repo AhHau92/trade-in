@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 
@@ -5,7 +6,11 @@ import { Prisma } from '@prisma/client'
 // (src/app/(site)/[category]/[brand]/[product]/[condition]/page.tsx) and the
 // public JSON API route (src/app/api/public/products/[slug]/route.ts), so
 // the two can never drift apart on what counts as an available product.
-export async function getProductForStorefront(slug: string, condition: string) {
+// Wrapped in React's cache() because the product page now calls this from
+// both generateMetadata() and the page component itself for the same
+// request — cache() memoizes by arguments for the lifetime of one request,
+// so that's one Prisma query instead of two, not two separate DB round trips.
+export const getProductForStorefront = cache(async (slug: string, condition: string) => {
   const product = await prisma.product.findUnique({
     where: { slug_condition: { slug, condition } },
     include: {
@@ -18,6 +23,7 @@ export async function getProductForStorefront(slug: string, condition: string) {
             include: {
               template: { include: { options: { orderBy: { order: 'asc' } } } },
               overrides: true,
+              options: true,
             },
           },
         },
@@ -32,7 +38,7 @@ export async function getProductForStorefront(slug: string, condition: string) {
   })
 
   return product
-}
+})
 
 export async function getStorefrontSettings() {
   let settings = await prisma.settings.findFirst()

@@ -185,7 +185,7 @@ export default async function DashboardPage() {
                 <td className="px-6 py-4 font-mono text-sm font-medium">{b.bookingRef}</td>
                 <td className="px-6 py-4 text-sm">{b.name}</td>
                 <td className="px-6 py-4 text-sm">
-                  {b.productName || b.variant.product.name} <span className="text-gray-400">— {b.variantName || b.variant.name}</span>
+                  {b.productName || b.variant?.product.name || 'Deleted product'} <span className="text-gray-400">— {b.variantName || b.variant?.name || 'Deleted variant'}</span>
                 </td>
                 <td className="px-6 py-4 font-medium text-sm">{currency} {formatMoney(b.finalPriceCents)}</td>
                 <td className="px-6 py-4">

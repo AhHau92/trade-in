@@ -8,6 +8,9 @@ type IncomingTemplateOption = {
   label: string
   priceAdjustCents?: number
   isWhatsapp?: boolean
+  imageUrl?: string
+  description?: string
+  defaultChecked?: boolean
 }
 
 export async function GET() {
@@ -30,11 +33,16 @@ export async function POST(req: NextRequest) {
     data: {
       title: body.title,
       order: body.order || 0,
+      type: body.type === 'multi' ? 'multi' : 'single',
+      helpText: body.helpText || null,
       options: {
         create: (body.options || []).map((opt: IncomingTemplateOption, i: number) => ({
           label: opt.label,
           priceAdjustCents: opt.priceAdjustCents || 0,
           isWhatsapp: opt.isWhatsapp || false,
+          imageUrl: opt.imageUrl || null,
+          description: opt.description || null,
+          defaultChecked: opt.defaultChecked || false,
           order: i,
         })),
       },

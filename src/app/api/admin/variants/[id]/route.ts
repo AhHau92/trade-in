@@ -11,7 +11,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json()
   const variant = await prisma.variant.update({
     where: { id },
-    data: { name: body.name, basePriceCents: body.basePriceCents, order: body.order, isActive: body.isActive },
+    data: {
+      name: body.name,
+      axis2Value: body.axis2Value || null,
+      basePriceCents: body.basePriceCents,
+      order: body.order,
+      isActive: body.isActive,
+      isWhatsappOnly: body.isWhatsappOnly ?? false,
+    },
   })
   return NextResponse.json(variant)
 }
@@ -22,14 +29,10 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params
 
-  const bookingCount = await prisma.booking.count({ where: { variantId: id } })
-  if (bookingCount > 0) {
-    return NextResponse.json(
-      { error: `Cannot delete: ${bookingCount} booking${bookingCount === 1 ? '' : 's'} reference this variant. Deactivate it instead if you don't want it shown.` },
-      { status: 400 },
-    )
-  }
-
+  // Booking.variantId is ON DELETE SET NULL (see schema.prisma), so deleting
+  // this variant just detaches any bookings that referenced it — their
+  // productName/variantName/branchName snapshots and full history are
+  // untouched. No pre-check needed here anymore.
   await prisma.variant.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

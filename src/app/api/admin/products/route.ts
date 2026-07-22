@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { slugify } from '@/lib/slug'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -50,7 +51,10 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  // The slug field is now editable in the admin form (with a "sync from
+  // name" button) — if the admin supplied one, clean and use it; otherwise
+  // fall back to deriving it from the name like before.
+  const slug = body.slug ? slugify(body.slug) : slugify(body.name)
 
   // Check for duplicate
   const existing = await prisma.product.findUnique({
@@ -71,8 +75,15 @@ export async function POST(req: NextRequest) {
       condition: body.condition || 'new',
       image: body.image || null,
       order: body.order || 0,
+      isActive: body.isActive ?? true,
       brandId: body.brandId,
       categoryId: body.categoryId,
+      variantLabel: body.variantLabel || 'Device Built-In Storage',
+      variantLabel2: body.variantLabel2 || null,
+      introContent: body.introContent || null,
+      seoContent: body.seoContent || null,
+      metaTitle: body.metaTitle || null,
+      metaDescription: body.metaDescription || null,
     },
   })
   return NextResponse.json(product)

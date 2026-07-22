@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getBrandWithProducts } from '@/lib/storefront'
+import TradeInSteps from '@/components/site/TradeInSteps'
 
 interface Product { id: string; name: string; slug: string; image: string | null; condition: string }
 
@@ -21,6 +22,10 @@ export default async function BrandPage({ params }: { params: Promise<{ category
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <Link href={`/${category}`} className="text-sm text-gray-500 hover:text-black">← Back</Link>
+
+      <div className="mt-6">
+        <TradeInSteps current={2} />
+      </div>
 
       <div className="text-center mb-10 mt-4">
         <h2 className="text-3xl font-bold">{brandData.name}</h2>

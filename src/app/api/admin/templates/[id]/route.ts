@@ -8,6 +8,9 @@ type IncomingTemplateOption = {
   label: string
   priceAdjustCents?: number
   isWhatsapp?: boolean
+  imageUrl?: string
+  description?: string
+  defaultChecked?: boolean
 }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,6 +59,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               label: opt.label,
               priceAdjustCents: opt.priceAdjustCents || 0,
               isWhatsapp: opt.isWhatsapp || false,
+              imageUrl: opt.imageUrl || null,
+              description: opt.description || null,
+              defaultChecked: opt.defaultChecked || false,
               order: i,
             },
           })
@@ -64,6 +70,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               label: opt.label,
               priceAdjustCents: opt.priceAdjustCents || 0,
               isWhatsapp: opt.isWhatsapp || false,
+              imageUrl: opt.imageUrl || null,
+              description: opt.description || null,
+              defaultChecked: opt.defaultChecked || false,
               order: i,
               templateId: id,
             },
@@ -75,6 +84,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         title: body.title,
         order: body.order || 0,
         isActive: body.isActive,
+        type: body.type === 'multi' ? 'multi' : 'single',
+        helpText: body.helpText || null,
       },
     }),
   ])
