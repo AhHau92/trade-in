@@ -2,7 +2,8 @@ import Link from 'next/link'
 
 const quickLinks = [
   { href: '/', label: 'Home' },
-  { href: '/booking', label: 'My Booking' },
+  { href: '/about', label: 'About Us' },
+  { href: '/about/gene', label: 'About Gene' },
   { href: '/admin/login', label: 'Admin Login' },
 ]
 

@@ -34,7 +34,16 @@ export async function GET(req: NextRequest) {
       take: limit,
       include: {
         brand: {
-          select: { name: true, slug: true, categories: { include: { category: { select: { slug: true } } }, take: 1 } },
+          select: {
+            name: true, slug: true,
+            // orderBy here isn't just cosmetic like the badge-list cases
+            // elsewhere — `take: 1` means whichever join row Postgres
+            // returns first becomes THE category used to build this
+            // product's storefront preview link, so without an explicit
+            // order that pick was arbitrary (and could silently point the
+            // "View" link at the wrong category for a multi-category brand).
+            categories: { orderBy: { category: { order: 'asc' } }, include: { category: { select: { slug: true } } }, take: 1 },
+          },
         },
         category: { select: { name: true } },
         _count: { select: { variants: true } },
@@ -68,13 +77,27 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // The Add Product form doesn't expose an order field (product order is
+  // managed on the dedicated /admin/products/order drag page), so it never
+  // sends one — this used to fall through to a hardcoded 0. That silently
+  // put every newly created product ahead of a brand's existing lineup
+  // (both on that reorder page and in the storefront's per-brand product
+  // list) instead of appending it at the end. Default to one past the
+  // current global max instead, so a new product always sorts after every
+  // existing one until an admin deliberately drags it elsewhere.
+  let order = body.order
+  if (order === undefined || order === null) {
+    const { _max } = await prisma.product.aggregate({ _max: { order: true } })
+    order = (_max.order ?? -1) + 1
+  }
+
   const product = await prisma.product.create({
     data: {
       name: body.name,
       slug,
       condition: body.condition || 'new',
       image: body.image || null,
-      order: body.order || 0,
+      order,
       isActive: body.isActive ?? true,
       brandId: body.brandId,
       categoryId: body.categoryId,

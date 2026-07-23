@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { formatMoney } from '@/lib/money'
+import { formatMoney, formatSignedMoney } from '@/lib/money'
 
 interface TemplateOption {
   id: string
@@ -69,6 +69,29 @@ const cardClass = (isChosen: boolean) =>
     isChosen ? 'border-black bg-black text-white shadow-md' : 'border-gray-200 hover:border-gray-400 hover:shadow-sm'
   }`
 
+// Every step of the flow (axis2, then each condition question) is always
+// rendered on the page — nothing pops in/out of existence — but wrapped in
+// this so it's visibly blurred and non-interactive until its turn. That's
+// the "show everything, but grey out what isn't unlocked yet, one step at a
+// time" behavior requested in place of sections abruptly appearing the
+// moment the step before them is picked.
+function LockableSection({ locked, lockedLabel, children }: { locked: boolean; lockedLabel: string; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <div className={`transition-all duration-300 ease-out ${locked ? 'pointer-events-none blur-[3px] opacity-40 select-none' : ''}`}>
+        {children}
+      </div>
+      {locked && (
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <span className="bg-white border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium text-gray-500 shadow-sm whitespace-nowrap">
+            🔒 {lockedLabel}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // All the data this component needs (product + settings) is fetched
 // server-side by the parent page.tsx (a Server Component) and passed in as
 // props — this component only owns the interactive selection state
@@ -93,6 +116,13 @@ export default function QuoteBuilder({ product, settings, condition }: { product
   const [selectedAxis1, setSelectedAxis1] = useState<string | null>(null)
   const axis1Names = Array.from(new Set(product.variants.map(v => v.name)))
   const axis2Variants = selectedAxis1 ? product.variants.filter(v => v.name === selectedAxis1) : []
+  // Before axis1 is picked we don't yet know which axis2 values actually go
+  // with it — but the axis2 section still needs *something* to render while
+  // it sits there blurred/locked, so show every axis2 value that exists
+  // anywhere on this product as a preview. It's non-interactive at that
+  // point anyway (LockableSection), so it never lets anyone pick a
+  // combination that isn't real.
+  const axis2Preview = Array.from(new Set(product.variants.map(v => v.axis2Value).filter((v): v is string => Boolean(v))))
 
   const selectAxis1 = (name: string) => {
     setSelectedAxis1(name)
@@ -260,33 +290,41 @@ export default function QuoteBuilder({ product, settings, condition }: { product
             </div>
           )}
 
-          {hasDualAxis && selectedAxis1 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-lg">{product.variantLabel2}</h3>
-                <button onClick={changeAxis1} className="text-sm text-gray-400 hover:text-black hover:underline transition-colors">
-                  Change {product.variantLabel}
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {axis2Variants.map((v) => {
-                  const isChosen = selectedVariant?.id === v.id
-                  return (
-                    <button key={v.id} onClick={() => selectVariant(v)} className={cardClass(isChosen)}>
-                      {isChosen && <SelectedCheck />}
-                      <p className="font-medium">{v.axis2Value}</p>
-                      {v.isWhatsappOnly ? (
-                        <p className={`text-sm font-medium ${isChosen ? 'text-green-300' : 'text-green-600'}`}>💬 WhatsApp for quote</p>
-                      ) : (
-                        <p className={`text-sm ${isChosen ? 'text-gray-300' : 'text-gray-500'}`}>
-                          Up to {settings.currency} {formatMoney(v.basePriceCents)}
-                        </p>
-                      )}
+          {hasDualAxis && (
+            <LockableSection locked={!selectedAxis1} lockedLabel={`Select a ${(product.variantLabel || 'storage option').toLowerCase()} first`}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">{product.variantLabel2}</h3>
+                  {selectedAxis1 && (
+                    <button onClick={changeAxis1} className="text-sm text-gray-400 hover:text-black hover:underline transition-colors">
+                      Change {product.variantLabel}
                     </button>
-                  )
-                })}
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {selectedAxis1 ? axis2Variants.map((v) => {
+                    const isChosen = selectedVariant?.id === v.id
+                    return (
+                      <button key={v.id} onClick={() => selectVariant(v)} className={cardClass(isChosen)}>
+                        {isChosen && <SelectedCheck />}
+                        <p className="font-medium">{v.axis2Value}</p>
+                        {v.isWhatsappOnly ? (
+                          <p className={`text-sm font-medium ${isChosen ? 'text-green-300' : 'text-green-600'}`}>💬 WhatsApp for quote</p>
+                        ) : (
+                          <p className={`text-sm ${isChosen ? 'text-gray-300' : 'text-gray-500'}`}>
+                            Up to {settings.currency} {formatMoney(v.basePriceCents)}
+                          </p>
+                        )}
+                      </button>
+                    )
+                  }) : axis2Preview.map((value) => (
+                    <div key={value} className={cardClass(false)}>
+                      <p className="font-medium">{value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </LockableSection>
           )}
 
           {selectedVariant && isWaOnlyVariant && (
@@ -296,48 +334,76 @@ export default function QuoteBuilder({ product, settings, condition }: { product
             </div>
           )}
 
-          {selectedVariant && !isWaOnlyVariant && selectedVariant.questions.map((vq) => {
+          {selectedVariant && !isWaOnlyVariant && selectedVariant.questions.map((vq, index) => {
             const isMulti = vq.template.type === 'multi'
             const visibleOptions = getVisibleOptions(vq)
             const chosen = selectedOptions[vq.templateId] || []
+            // Every question is rendered as soon as a variant is picked — but
+            // each one stays locked until every question before it has an
+            // answer, so instead of the whole list becoming clickable at
+            // once, they unlock one at a time in order.
+            const priorAnswered = selectedVariant.questions
+              .slice(0, index)
+              .every((prevVq) => (selectedOptions[prevVq.templateId]?.length ?? 0) > 0)
             return (
-              <div key={vq.id}>
-                <h3 className="font-semibold text-lg mb-1">
-                  {vq.template.title}
-                  {isMulti && <span className="ml-2 text-xs font-normal text-gray-400">(select any that apply)</span>}
-                </h3>
-                {vq.template.helpText && <p className="text-sm text-gray-500 mb-3">{vq.template.helpText}</p>}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  {visibleOptions.map((opt) => {
-                    const resolved = effectiveOption(opt, vq.overrides)
-                    const isChosen = chosen.some(o => o.id === opt.id)
-                    return (
-                      <button key={opt.id}
-                        onClick={() => isMulti ? toggleMultiOption(vq.templateId, resolved) : selectSingleOption(vq.templateId, resolved)}
-                        className={`${cardClass(isChosen)} flex gap-3 items-start`}>
-                        {isChosen && <SelectedCheck />}
-                        {opt.imageUrl && (
-                          // Plain <img>, not next/image: this URL is free-text entered by an
-                          // admin (see templates page), so it can be any host. next/image
-                          // throws and takes down the ENTIRE product page for every visitor
-                          // if the hostname isn't in next.config.ts's remotePatterns — one
-                          // pasted-in URL shouldn't be able to do that over a small option
-                          // thumbnail. A plain <img> just renders (or shows a broken-image
-                          // icon) and never crashes the page.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={opt.imageUrl} alt={opt.label} width={40} height={40} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
-                        )}
-                        <span className="pr-4">
-                          <span className="font-medium block">{opt.label}</span>
-                          {opt.description && (
-                            <span className={`text-xs block mt-0.5 ${isChosen ? 'text-gray-300' : 'text-gray-400'}`}>{opt.description}</span>
+              <LockableSection key={vq.id} locked={!priorAnswered} lockedLabel="Answer the previous question first">
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">
+                    {vq.template.title}
+                    {isMulti && <span className="ml-2 text-xs font-normal text-gray-400">(select any that apply)</span>}
+                  </h3>
+                  {vq.template.helpText && <p className="text-sm text-gray-500 mb-3">{vq.template.helpText}</p>}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    {visibleOptions.map((opt) => {
+                      const resolved = effectiveOption(opt, vq.overrides)
+                      const isChosen = chosen.some(o => o.id === opt.id)
+                      return (
+                        <button key={opt.id}
+                          onClick={() => isMulti ? toggleMultiOption(vq.templateId, resolved) : selectSingleOption(vq.templateId, resolved)}
+                          className={`${cardClass(isChosen)} flex gap-3 items-start`}>
+                          {isChosen && <SelectedCheck />}
+                          {opt.imageUrl && (
+                            // Plain <img>, not next/image: this URL is free-text entered by an
+                            // admin (see templates page), so it can be any host. next/image
+                            // throws and takes down the ENTIRE product page for every visitor
+                            // if the hostname isn't in next.config.ts's remotePatterns — one
+                            // pasted-in URL shouldn't be able to do that over a small option
+                            // thumbnail. A plain <img> just renders (or shows a broken-image
+                            // icon) and never crashes the page.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={opt.imageUrl} alt={opt.label} width={40} height={40} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
                           )}
-                        </span>
-                      </button>
-                    )
-                  })}
+                          <span className="pr-4">
+                            <span className="font-medium block">{opt.label}</span>
+                            {opt.description && (
+                              <span className={`text-xs block mt-0.5 ${isChosen ? 'text-gray-300' : 'text-gray-400'}`}>{opt.description}</span>
+                            )}
+                            {/* Price effect of this option — shown at all times so
+                                customers can compare before picking, then made bold
+                                and pill-shaped once selected so it's unmistakable
+                                how much this choice deducted (or added). */}
+                            {resolved.isWhatsapp ? (
+                              <span className={`inline-block mt-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                isChosen ? 'bg-white/20 text-white' : 'bg-green-50 text-green-700'
+                              }`}>
+                                💬 Quote via WhatsApp
+                              </span>
+                            ) : resolved.priceAdjustCents !== 0 && (
+                              <span className={`inline-block mt-1.5 text-xs font-bold px-2 py-0.5 rounded-full ${
+                                isChosen
+                                  ? resolved.priceAdjustCents < 0 ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                                  : resolved.priceAdjustCents < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+                              }`}>
+                                {settings.currency} {formatSignedMoney(resolved.priceAdjustCents)}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
+              </LockableSection>
             )
           })}
         </div>
@@ -357,8 +423,8 @@ export default function QuoteBuilder({ product, settings, condition }: { product
                   if (chosen.length === 0) return null
                   return (
                     <div key={vq.templateId} className="flex justify-between gap-3">
-                      <span className="text-gray-400 flex-shrink-0">{vq.template.title}</span>
-                      <span className="text-right">{chosen.map(o => o.label).join(', ')}</span>
+                      <span className="text-gray-400 flex-shrink-0 max-w-[45%]">{vq.template.title}</span>
+                      <span className="text-right break-words min-w-0 flex-1">{chosen.map(o => o.label).join(', ')}</span>
                     </div>
                   )
                 })}

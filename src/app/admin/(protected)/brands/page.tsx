@@ -107,6 +107,9 @@ export default function BrandsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Brand | null>(null)
   const [form, setForm] = useState({ name: '', image: '', order: 0, categoryIds: [] as string[] })
+  // Blocks Save while the image is still mid-upload, so submitting doesn't
+  // race ahead of ImageUpload's onChange and silently drop the new image.
+  const [imageUploading, setImageUploading] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -147,6 +150,7 @@ export default function BrandsPage() {
     setEditing(null)
     // New brands go to the end of the current drag order.
     setForm({ name: '', image: '', order: brands.length, categoryIds: [] })
+    setImageUploading(false)
     setShowModal(true)
   }
 
@@ -158,6 +162,7 @@ export default function BrandsPage() {
       order: brand.order,
       categoryIds: brand.categories.map(c => c.category.id),
     })
+    setImageUploading(false)
     setShowModal(true)
   }
 
@@ -302,14 +307,15 @@ export default function BrandsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                <ImageUpload value={form.image} onChange={(url) => setForm({ ...form, image: url })} folder="trade-in/brands" />
+                <ImageUpload value={form.image} onChange={(url) => setForm({ ...form, image: url })} folder="trade-in/brands" onUploadingChange={setImageUploading} />
               </div>
               {/* Order is no longer typed in by hand — drag the ⠿ handle on the
                   list to reorder brands instead. */}
 
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition">
-                  {editing ? 'Save Changes' : 'Create'}
+                <button type="submit" disabled={imageUploading}
+                  className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-50">
+                  {imageUploading ? 'Uploading image...' : editing ? 'Save Changes' : 'Create'}
                 </button>
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border py-2 rounded-lg hover:bg-gray-50 transition">
                   Cancel

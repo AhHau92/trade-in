@@ -32,28 +32,39 @@ export default async function BrandPage({ params }: { params: Promise<{ category
         <p className="text-gray-500 mt-2">Select your device</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from(groupedMap.entries()).map(([name, variants]) => (
-          <div key={name} className="border-2 border-gray-200 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
-            {variants[0].image ? (
-              <Image src={variants[0].image} alt={name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4" />
-            ) : (
-              <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">📱</div>
-            )}
-            <p className="font-semibold mb-3">{name}</p>
-            <div className="flex justify-center gap-2">
-              {variants.sort((a) => a.condition === 'new' ? -1 : 1).map((p) => (
-                <Link key={p.id} href={`/${category}/${brand}/${p.slug}/${p.condition}`}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition ${
-                    p.condition === 'new' ? 'border-blue-500 text-blue-700 hover:bg-blue-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'
-                  }`}>
-                  {p.condition === 'new' ? '🆕 New' : '♻️ Used'}
-                </Link>
-              ))}
+      {groupedMap.size === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl">📦</div>
+          <p className="font-semibold text-lg">No devices available yet</p>
+          <p className="text-gray-500 mt-1">We haven&apos;t listed any {brandData.name} devices here yet — check back soon.</p>
+          <Link href={`/${category}`} className="inline-block mt-6 text-sm font-medium text-black hover:underline">
+            ← Choose a different brand
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from(groupedMap.entries()).map(([name, variants]) => (
+            <div key={name} className="border-2 border-gray-200 rounded-2xl p-6 text-center hover:shadow-lg transition-all">
+              {variants[0].image ? (
+                <Image src={variants[0].image} alt={name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4" />
+              ) : (
+                <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">📱</div>
+              )}
+              <p className="font-semibold mb-3">{name}</p>
+              <div className="flex justify-center gap-2">
+                {variants.sort((a) => a.condition === 'new' ? -1 : 1).map((p) => (
+                  <Link key={p.id} href={`/${category}/${brand}/${p.slug}/${p.condition}`}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition ${
+                      p.condition === 'new' ? 'border-blue-500 text-blue-700 hover:bg-blue-50' : 'border-orange-500 text-orange-700 hover:bg-orange-50'
+                    }`}>
+                    {p.condition === 'new' ? '🆕 New' : '♻️ Used'}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

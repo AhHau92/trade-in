@@ -119,6 +119,18 @@ export default function TemplatesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Template | null>(null)
   const [form, setForm] = useState({ title: '', order: 0, type: 'single', helpText: '', options: [] as TemplateOption[] })
+  // Each option has its own ImageUpload, so track uploads by option index —
+  // Save is blocked while any of them are still in flight, so submitting
+  // doesn't race ahead of ImageUpload's onChange and silently drop an image.
+  const [uploadingOptions, setUploadingOptions] = useState<Set<number>>(new Set())
+  const setOptionUploading = (index: number, uploading: boolean) => {
+    setUploadingOptions(prev => {
+      const next = new Set(prev)
+      if (uploading) next.add(index)
+      else next.delete(index)
+      return next
+    })
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -159,12 +171,14 @@ export default function TemplatesPage() {
     // New templates go to the end of the current drag order — order is no
     // longer something the admin types in by hand.
     setForm({ title: '', order: templates.length, type: 'single', helpText: '', options: [] })
+    setUploadingOptions(new Set())
     setShowModal(true)
   }
 
   const openEdit = (t: Template) => {
     setEditing(t)
     setForm({ title: t.title, order: t.order, type: t.type || 'single', helpText: t.helpText || '', options: t.options.map(o => ({ ...o })) })
+    setUploadingOptions(new Set())
     setShowModal(true)
   }
 
@@ -346,7 +360,8 @@ export default function TemplatesPage() {
                           {/* Uploads to Cloudinary (same as product/brand/category images) rather than
                               a free-text URL field — the storefront can then trust every option image
                               actually lives on a domain it knows how to render. */}
-                          <ImageUpload value={opt.imageUrl || ''} onChange={(url) => updateOption(i, 'imageUrl', url)} folder="trade-in/options" />
+                          <ImageUpload value={opt.imageUrl || ''} onChange={(url) => updateOption(i, 'imageUrl', url)} folder="trade-in/options"
+                            onUploadingChange={(uploading) => setOptionUploading(i, uploading)} />
                           <textarea value={opt.description || ''} onChange={(e) => updateOption(i, 'description', e.target.value)} rows={2}
                             className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-black" placeholder="Short description shown under the option label" />
                         </div>
@@ -360,8 +375,9 @@ export default function TemplatesPage() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition">
-                  {editing ? 'Save Changes' : 'Create'}
+                <button type="submit" disabled={uploadingOptions.size > 0}
+                  className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-50">
+                  {uploadingOptions.size > 0 ? 'Uploading image...' : editing ? 'Save Changes' : 'Create'}
                 </button>
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border py-2 rounded-lg hover:bg-gray-50 transition">
                   Cancel

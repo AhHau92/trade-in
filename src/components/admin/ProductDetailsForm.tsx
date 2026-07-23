@@ -52,6 +52,9 @@ export default function ProductDetailsForm({
   // has a value on mount) treat it as already "manually set" so opening the
   // edit page and tweaking the name doesn't silently change its live slug.
   const [slugTouched, setSlugTouched] = useState(() => !!form.slug)
+  // Tracks whether the product image is still mid-upload, so Save can be
+  // disabled until it's actually done — see ImageUpload's onUploadingChange.
+  const [imageUploading, setImageUploading] = useState(false)
 
   useEffect(() => {
     if (!slugTouched && form.name) set('slug', slugify(form.name))
@@ -143,7 +146,7 @@ export default function ProductDetailsForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-        <ImageUpload value={form.image} onChange={(url) => set('image', url)} folder="trade-in/products" />
+        <ImageUpload value={form.image} onChange={(url) => set('image', url)} folder="trade-in/products" onUploadingChange={setImageUploading} />
       </div>
 
       <details className="border rounded-lg px-3 py-2 group">
@@ -178,9 +181,9 @@ export default function ProductDetailsForm({
       </label>
 
       <div className="pt-2">
-        <button type="submit" disabled={saving}
+        <button type="submit" disabled={saving || imageUploading}
           className="bg-black text-white px-5 py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-50">
-          {saving ? 'Saving...' : submitLabel}
+          {imageUploading ? 'Uploading image...' : saving ? 'Saving...' : submitLabel}
         </button>
       </div>
     </form>

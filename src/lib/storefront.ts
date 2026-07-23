@@ -63,6 +63,13 @@ export async function getCategoryWithBrands(slug: string) {
     where: { slug },
     include: {
       brands: {
+        // CategoryBrand is a pure join row with no order/createdAt column of
+        // its own, so without this the list came back sorted by whatever
+        // order Postgres happened to store the join rows in (effectively by
+        // brandId) — completely ignoring the brand's actual drag-to-reorder
+        // position, which is why the storefront could show a different
+        // order than the admin's Brands list.
+        orderBy: { brand: { order: 'asc' } },
         include: {
           brand: { select: { id: true, name: true, slug: true, image: true, isActive: true } },
         },

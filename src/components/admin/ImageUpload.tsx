@@ -7,30 +7,43 @@ interface ImageUploadProps {
   value: string
   onChange: (url: string) => void
   folder?: string
+  // Lets the parent form know a file is mid-upload so it can disable its
+  // Save button — without this, saving while an upload is still in flight
+  // would submit the form before `onChange(url)` ever fires, silently
+  // dropping the new image (looked like "the upload feature is broken").
+  onUploadingChange?: (uploading: boolean) => void
 }
 
-export default function ImageUpload({ value, onChange, folder = 'trade-in' }: ImageUploadProps) {
+export default function ImageUpload({ value, onChange, folder = 'trade-in', onUploadingChange }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
+
+  const setUploadingState = (v: boolean) => {
+    setUploading(v)
+    onUploadingChange?.(v)
+  }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploading(true)
+    setUploadingState(true)
     const formData = new FormData()
     formData.append('file', file)
     formData.append('folder', folder)
 
-    const res = await fetch('/api/admin/upload', {
-      method: 'POST',
-      body: formData,
-    })
+    try {
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-    const data = await res.json()
-    if (data.url) {
-      onChange(data.url)
+      const data = await res.json()
+      if (data.url) {
+        onChange(data.url)
+      }
+    } finally {
+      setUploadingState(false)
     }
-    setUploading(false)
   }
 
   return (

@@ -10,7 +10,11 @@ export async function GET() {
   const brands = await prisma.brand.findMany({
     orderBy: { order: 'asc' },
     include: {
-      categories: { include: { category: { select: { id: true, name: true } } } },
+      // Same CategoryBrand join-order issue as getCategoryWithBrands in
+      // storefront.ts (see comment there) — without this, the category
+      // badges on this list render in an arbitrary order instead of
+      // following the categories' own drag-to-reorder position.
+      categories: { orderBy: { category: { order: 'asc' } }, include: { category: { select: { id: true, name: true } } } },
       _count: { select: { products: true } },
     },
   })

@@ -23,22 +23,33 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
         <p className="text-gray-500 mt-2">Select a brand</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {brands.map((brand) => (
-          <Link
-            key={brand.id}
-            href={`/${category}/${brand.slug}`}
-            className="group border-2 border-gray-200 rounded-2xl p-6 text-center hover:border-black transition-all hover:shadow-lg"
-          >
-            {brand.image ? (
-              <Image src={brand.image} alt={brand.name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4 group-hover:scale-110 transition-transform" />
-            ) : (
-              <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">🏷️</div>
-            )}
-            <p className="font-semibold text-lg">{brand.name}</p>
+      {brands.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl">🏷️</div>
+          <p className="font-semibold text-lg">No brands available yet</p>
+          <p className="text-gray-500 mt-1">We haven&apos;t listed any brands under {categoryData.name} yet — check back soon.</p>
+          <Link href="/" className="inline-block mt-6 text-sm font-medium text-black hover:underline">
+            ← Back to categories
           </Link>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {brands.map((brand) => (
+            <Link
+              key={brand.id}
+              href={`/${category}/${brand.slug}`}
+              className="group border-2 border-gray-200 rounded-2xl p-6 text-center hover:border-black transition-all hover:shadow-lg"
+            >
+              {brand.image ? (
+                <Image src={brand.image} alt={brand.name} width={80} height={80} className="w-20 h-20 object-contain mx-auto mb-4 group-hover:scale-110 transition-transform" />
+              ) : (
+                <div className="w-20 h-20 bg-gray-100 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl">🏷️</div>
+              )}
+              <p className="font-semibold text-lg">{brand.name}</p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
