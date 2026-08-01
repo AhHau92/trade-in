@@ -11,8 +11,12 @@ import { Prisma } from '@prisma/client'
 // request — cache() memoizes by arguments for the lifetime of one request,
 // so that's one Prisma query instead of two, not two separate DB round trips.
 export const getProductForStorefront = cache(async (slug: string, condition: string) => {
-  const product = await prisma.product.findUnique({
-    where: { slug_condition: { slug, condition } },
+  const product = await prisma.product.findFirst({
+    // Product routes are guessable, so the detail lookup must enforce the
+    // same active-only rule as the category/brand listings. Otherwise an
+    // inactive catalogue item would disappear from cards but remain
+    // publicly reachable through its old URL.
+    where: { slug, condition, isActive: true },
     include: {
       brand: { select: { name: true, slug: true } },
       variants: {

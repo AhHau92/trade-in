@@ -2,6 +2,11 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getStorefrontCategories } from '@/lib/storefront'
 
+// Categories are admin-managed catalogue data. Render this page per request
+// so admin changes appear immediately instead of being frozen into the last
+// deployment's static build output.
+export const dynamic = 'force-dynamic'
+
 // Pure list/navigation page — no client interactivity beyond <Link>, so it's
 // rendered entirely server-side. No useEffect fetch, no manual loading state.
 export default async function HomePage() {
@@ -10,8 +15,13 @@ export default async function HomePage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="text-center mb-10">
-        <h2 className="text-3xl font-bold">What would you like to trade in?</h2>
-        <p className="text-gray-500 mt-2">Select a category to get started</p>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">
+          Interactive Full-Stack Demo
+        </p>
+        <h1 className="text-3xl font-bold">What would you like to trade in?</h1>
+        <p className="text-gray-500 mt-2">
+          Explore a sample device catalogue and condition-based quote flow.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -29,6 +39,21 @@ export default async function HomePage() {
             <p className="font-semibold text-lg">{cat.name}</p>
           </Link>
         ))}
+      </div>
+
+      <div className="mt-12 grid gap-4 border-t border-gray-100 pt-8 text-sm text-gray-600 md:grid-cols-3">
+        <div className="rounded-xl bg-gray-50 p-4">
+          <p className="font-semibold text-gray-900">Verified pricing</p>
+          <p className="mt-1">Quotes are recomputed on the server before a booking is accepted.</p>
+        </div>
+        <div className="rounded-xl bg-gray-50 p-4">
+          <p className="font-semibold text-gray-900">Flexible catalogue</p>
+          <p className="mt-1">Products support storage, colour, condition, and reusable questions.</p>
+        </div>
+        <div className="rounded-xl bg-gray-50 p-4">
+          <p className="font-semibold text-gray-900">Operational workflow</p>
+          <p className="mt-1">Bookings, branches, notifications, settings, and roles share one system.</p>
+        </div>
       </div>
     </div>
   )

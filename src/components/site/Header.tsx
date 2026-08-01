@@ -5,8 +5,8 @@ import Link from 'next/link'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/about', label: 'About Us' },
-  { href: '/about/gene', label: 'About Gene' },
+  { href: '/about', label: 'About the Demo' },
+  { href: '/about/gene', label: 'Case Study' },
   { href: '/admin/login', label: 'Admin Login' },
 ]
 
@@ -18,7 +18,7 @@ export default function Header() {
       <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold" onClick={() => setOpen(false)}>
           <span>📱</span>
-          <span>Trade-In</span>
+          <span>Device Trade-In</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">

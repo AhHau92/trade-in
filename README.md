@@ -87,20 +87,23 @@ building a booking flow where:
 
 ## 4. Demo
 
-Not deployed yet — this currently runs locally only (see [Running Locally](#9-running-locally)).
+Live portfolio demo: [trade-in-omega.vercel.app](https://trade-in-omega.vercel.app)
+
+The public catalogue is intentionally seeded with illustrative products,
+original AI-generated device imagery, fictional branches/bookings, and
+conservative sample prices. It is not a real trade-in business and the
+displayed estimates are not commercial offers.
 
 ## 5. Test account
 
-Seeded via `npx prisma db seed` (see `prisma/seed.ts`):
+The admin dashboard is available at `/admin/login`, but this public deployment
+does not display shared write credentials. To create an initial admin locally,
+set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and `ROOT_ADMIN_EMAIL`, then run
+`npx prisma db seed`.
 
-| Field | Value |
-|---|---|
-| URL | `/admin/login` |
-| Email | `admin@tradein.com` |
-| Password | `admin123` |
-| Role | `superadmin` (root admin — can manage other admins' roles) |
-
-Change this password before ever deploying anywhere public.
+The seed is idempotent: it upserts the demo catalogue, pricing questions,
+branches, and fictional dashboard bookings without deleting historical
+bookings. It never ships a default password.
 
 ## 6. Architecture
 
@@ -180,7 +183,8 @@ cd trade-in
 npm install
 
 cp .env.example .env
-# fill in DATABASE_URL, NEXTAUTH_SECRET, Cloudinary and Resend keys
+# fill in DATABASE_URL, NEXTAUTH_SECRET, admin seed values,
+# Cloudinary, and Resend keys
 
 npx prisma migrate deploy   # apply migrations
 npx prisma db seed          # creates the root admin (see §5) + default settings
@@ -203,7 +207,6 @@ npm run build   # production build + TypeScript typecheck
   including concurrency testing for the booking-ref race condition and a
   live price-tampering attempt via DevTools). Adding unit tests for
   `bookingPricing.ts` and the Zod schemas would be the natural next step.
-- **Not deployed.** Runs locally only; no live demo URL yet.
 - **Email sending uses Resend's sandbox sender** (`onboarding@resend.dev`),
   which only reliably delivers to the account owner's own verified email in
   Resend's free tier. Production use needs a verified custom sending domain.

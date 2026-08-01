@@ -2,8 +2,8 @@ import Link from 'next/link'
 
 const quickLinks = [
   { href: '/', label: 'Home' },
-  { href: '/about', label: 'About Us' },
-  { href: '/about/gene', label: 'About Gene' },
+  { href: '/about', label: 'About the Demo' },
+  { href: '/about/gene', label: 'Project Case Study' },
   { href: '/admin/login', label: 'Admin Login' },
 ]
 
@@ -14,8 +14,11 @@ export default function Footer() {
     <footer className="mt-16 bg-black text-gray-400">
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-4 py-10 md:grid-cols-3">
         <div>
-          <h3 className="mb-2 text-lg font-bold text-white">Trade-In</h3>
-          <p className="text-sm">Get the best value for your device, fast and hassle-free.</p>
+          <h3 className="mb-2 text-lg font-bold text-white">Device Trade-In Demo</h3>
+          <p className="text-sm">
+            A full-stack portfolio project covering catalogue management, verified quotes,
+            and booking workflows.
+          </p>
         </div>
 
         <div>
@@ -32,21 +35,16 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Contact Us</h4>
-          <ul className="space-y-2 text-sm">
-            {/* TODO: replace with real contact details */}
-            <li>📧 contact@tradein.com</li>
-            <li>📞 +60 12-345 6789</li>
-            <li className="flex gap-3 pt-1">
-              <a href="#" className="transition hover:text-white">Facebook</a>
-              <a href="#" className="transition hover:text-white">Instagram</a>
-            </li>
-          </ul>
+          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Demo Notice</h4>
+          <p className="text-sm">
+            This is not a real trade-in business. Products, imagery, branches, and prices are
+            illustrative portfolio data.
+          </p>
         </div>
       </div>
 
       <div className="border-t border-gray-800 py-4 text-center text-xs text-gray-500">
-        © {year} Trade-In. All rights reserved.
+        © {year} Gene Ee Chun Hau · Portfolio demonstration
       </div>
     </footer>
   )

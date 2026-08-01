@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Samsung demo brand marker</title>
+  <rect width="256" height="256" rx="56" fill="#0f3b82"/>
+  <circle cx="128" cy="128" r="70" fill="#fff"/>
+  <path d="M165 92c-11-10-24-16-39-16-24 0-42 13-42 34 0 22 18 29 39 34 14 3 22 6 22 14 0 7-7 11-18 11-13 0-26-6-36-16l-14 18c13 13 30 21 50 21 27 0 44-14 44-36 0-23-18-30-40-35-14-3-21-6-21-13 0-6 6-10 16-10 10 0 20 4 27 11l12-21Z" fill="#0f3b82"/>
+</svg>

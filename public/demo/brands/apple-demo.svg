@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Apple demo brand marker</title>
+  <rect width="256" height="256" rx="56" fill="#111827"/>
+  <circle cx="128" cy="128" r="70" fill="#fff"/>
+  <path d="M128 76 84 181h25l10-27h43l10 27h25L153 76h-25Zm0 56 13-34 13 34h-26Z" fill="#111827"/>
+</svg>

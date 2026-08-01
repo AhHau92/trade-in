@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 // The one account allowed to promote/demote other admins' roles.
 // Every other superadmin has full access to everything else, but role
 // management is reserved for this root account only.
-export const ROOT_ADMIN_EMAIL = 'admin@tradein.com'
+export const ROOT_ADMIN_EMAIL = process.env.ROOT_ADMIN_EMAIL || 'admin@tradein.com'
 
 export const authOptions: NextAuthOptions = {
   providers: [

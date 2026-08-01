@@ -1,7 +1,11 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: 'About Gene',
+export const metadata: Metadata = {
+  title: 'Technical Case Study',
+  description:
+    'The architecture, engineering decisions, and product thinking behind Gene Ee Chun Hau’s full-stack device trade-in platform.',
 }
 
 const techStack = [
@@ -11,19 +15,42 @@ const techStack = [
   },
   {
     label: 'Backend',
-    detail: 'Node.js, APIs, authentication, role-based access control',
+    detail: 'Next.js Route Handlers, server-verified pricing, NextAuth, Zod',
   },
   {
     label: 'Database',
-    detail: 'MongoDB and data structure design',
+    detail: 'PostgreSQL on Neon, Prisma ORM, relational data modelling',
   },
   {
-    label: 'Automation',
-    detail: 'Python, web scraping, scheduled workflows, and data processing',
+    label: 'Operations',
+    detail: 'Cloudinary uploads, Resend notifications, Vercel deployment',
   },
   {
-    label: 'Web Platforms',
-    detail: 'WordPress, WooCommerce, PHP, and third-party system integrations',
+    label: 'Admin Experience',
+    detail: 'Reusable question templates, drag-to-reorder catalogue, role-based access',
+  },
+]
+
+const engineeringDecisions = [
+  {
+    title: 'Server-authoritative pricing',
+    detail:
+      'The browser submits selected variant and option IDs, never a trusted price. The server resolves the quote again before creating a booking.',
+  },
+  {
+    title: 'Money stored as integer cents',
+    detail:
+      'Prices and adjustments use integer cents across the database and application boundary, avoiding floating-point rounding errors.',
+  },
+  {
+    title: 'Stable booking references',
+    detail:
+      'A per-day PostgreSQL counter creates readable booking references without the race condition caused by COUNT(*) + 1.',
+  },
+  {
+    title: 'Historical booking snapshots',
+    detail:
+      'Bookings preserve product, variant, branch, and price snapshots even when catalogue records are renamed or removed later.',
   },
 ]
 
@@ -33,7 +60,10 @@ export default function AboutGenePage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold">About Gene</h1>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">
+          Technical Case Study
+        </p>
+        <h1 className="text-3xl font-bold">Device Trade-In Platform</h1>
         <p className="mt-4 text-xl md:text-2xl font-semibold max-w-2xl mx-auto">
           I turn complex workflows into simple digital experiences.
         </p>
@@ -59,6 +89,78 @@ export default function AboutGenePage() {
           products, pricing, bookings, users, and operational data through a dedicated
           dashboard.
         </p>
+      </div>
+
+      <section className="mt-14" aria-labelledby="admin-workflow">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+            Full operational workflow
+          </p>
+          <h2 id="admin-workflow" className="mt-2 text-2xl font-bold text-black">
+            The admin experience behind the storefront
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            Staff can monitor trade-in activity, maintain the product catalogue, and manage
+            bookings from one protected dashboard. All names and records shown below are
+            fictional portfolio data.
+          </p>
+        </div>
+
+        <figure className="mt-7 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <Image
+            src="/demo/admin/dashboard.png"
+            alt="Trade-In Admin dashboard showing catalogue, booking, and trade-in value metrics"
+            width={1440}
+            height={1000}
+            className="h-auto w-full"
+            sizes="(max-width: 1024px) 100vw, 1024px"
+          />
+          <figcaption className="border-t border-gray-100 px-5 py-4 text-sm text-gray-600">
+            Operational overview with recent bookings, status breakdowns, and trade-in value.
+          </figcaption>
+        </figure>
+
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+          <figure className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <Image
+              src="/demo/admin/products.png"
+              alt="Product management table with category, brand, condition, variants, and status controls"
+              width={1440}
+              height={1048}
+              className="h-auto w-full"
+              sizes="(max-width: 768px) 100vw, 512px"
+            />
+            <figcaption className="border-t border-gray-100 px-5 py-4 text-sm text-gray-600">
+              Catalogue management across products, variants, conditions, and availability.
+            </figcaption>
+          </figure>
+
+          <figure className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <Image
+              src="/demo/admin/bookings.png"
+              alt="Booking management table with fictional customers and multiple trade-in statuses"
+              width={1440}
+              height={1000}
+              className="h-auto w-full"
+              sizes="(max-width: 768px) 100vw, 512px"
+            />
+            <figcaption className="border-t border-gray-100 px-5 py-4 text-sm text-gray-600">
+              Booking operations with pickup methods, values, and lifecycle status tracking.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <div className="mt-12 max-w-3xl mx-auto">
+        <h2 className="text-lg font-bold mb-4">Key Engineering Decisions</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {engineeringDecisions.map((item) => (
+            <div key={item.title} className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+              <h3 className="font-semibold">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{item.detail}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-12 max-w-3xl mx-auto">
@@ -108,7 +210,7 @@ export default function AboutGenePage() {
 
       <div className="text-center mt-12">
         <Link href="/about" className="text-sm font-medium text-gray-500 hover:text-black transition">
-          ← Back to About Us
+          ← Back to About the Demo
         </Link>
       </div>
     </div>
